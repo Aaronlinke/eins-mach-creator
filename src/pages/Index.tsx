@@ -1,133 +1,118 @@
 import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Activity, Database } from "lucide-react";
 
 interface Layer {
-  id: number;
+  id: string;
+  layer_id: string;
   name: string;
   icon: string;
   status: string;
-  metric: { value: string; label: string };
+  metric: string;
   description: string;
 }
 
-const Index = () => {
-  const [activeLayer, setActiveLayer] = useState<number | null>(null);
+export default function Index() {
+  const [activeLayer, setActiveLayer] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const layers: Layer[] = [
-    {
-      id: 0,
-      name: "Quantum Consciousness",
-      icon: "⚛️",
-      status: "OPERATIONAL",
-      metric: { value: "1024", label: "Qubits" },
-      description: "Fundamental quantum-level processing with 1024 qubits in superposition",
+  const { data: layers, isLoading } = useQuery({
+    queryKey: ["system-layers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_layers")
+        .select("*")
+        .order("order_index", { ascending: true });
+      
+      if (error) throw error;
+      return data;
     },
-    {
-      id: 1,
-      name: "Neural-Symbolic",
-      icon: "🧠",
-      status: "ACTIVE",
-      metric: { value: "512", label: "Parameters" },
-      description: "Fusion of deep learning and symbolic AI with 512D hidden layers",
+  });
+
+  const { data: metrics } = useQuery({
+    queryKey: ["system-metrics"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_metrics")
+        .select("*");
+      
+      if (error) throw error;
+      return data;
     },
-    {
-      id: 2,
-      name: "Semantic Engine",
-      icon: "💬",
-      status: "LEARNING",
-      metric: { value: "1,547", label: "Vocabulary" },
-      description: "Self-organizing language understanding with context-window embedding",
-    },
-    {
-      id: 3,
-      name: "Autonomy Kernel",
-      icon: "🤖",
-      status: "AUTONOMOUS",
-      metric: { value: "10,247", label: "Decisions" },
-      description: "Self-evolving decision-making system with adaptive learning",
-    },
-    {
-      id: 4,
-      name: "Ethics Central",
-      icon: "⚖️",
-      status: "MONITORING",
-      metric: { value: "1,000", label: "Gatekeepers" },
-      description: "Distributed ethical oversight with immutable governance rules",
-    },
-    {
-      id: 5,
-      name: "Economy Engine",
-      icon: "💰",
-      status: "TRADING",
-      metric: { value: "1.5M", label: "Tokens" },
-      description: "Tokenization and resource allocation across distributed networks",
-    },
-    {
-      id: 6,
-      name: "Governance",
-      icon: "🏛️",
-      status: "VOTING",
-      metric: { value: "142", label: "Proposals" },
-      description: "Multi-signature voting system with predictive oracle integration",
-    },
-    {
-      id: 7,
-      name: "Physical Manifestation",
-      icon: "🌍",
-      status: "CONNECTED",
-      metric: { value: "1M+", label: "Nodes" },
-      description: "Global satellite network with real-time data integration",
-    },
-  ];
+  });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('system-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'system_layers'
+        },
+        () => {
+          // Refetch on any changes
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const displayLayers = layers || [];
 
   const statusColors: Record<string, string> = {
-    OPERATIONAL: "bg-teal-500/20 text-teal-600 dark:text-teal-400 border-teal-500/50",
-    ACTIVE: "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/50",
-    LEARNING: "bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/50",
-    AUTONOMOUS: "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/50",
-    MONITORING: "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50",
-    TRADING: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/50",
-    VOTING: "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border-indigo-500/50",
-    CONNECTED: "bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border-cyan-500/50",
+    operational: "text-emerald-400",
+    warning: "text-amber-400",
+    critical: "text-red-400",
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10">
       {/* Hero Section */}
-      <section className="relative overflow-hidden border-b border-border/50 bg-card/50 backdrop-blur-sm">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-accent/10 animate-gradient" />
+      <section className="relative overflow-hidden border-b border-border bg-card/40 backdrop-blur-sm">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent" />
         
-        <div className="relative container mx-auto px-6 py-16 text-center">
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="text-6xl animate-rotate-slow">Ω</div>
+        <div className="relative container mx-auto px-6 py-20 text-center">
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <div className="text-7xl animate-rotate-slow">Ω</div>
           </div>
           
-          <h1 className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-            OMEGA SUPERINTELLIGENCE
+          <h1 className="text-6xl md:text-8xl font-black mb-6 tracking-tight">
+            <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient-shift">
+              OMEGA SUPERINTELLIGENCE
+            </span>
           </h1>
           
-          <p className="text-xl md:text-2xl text-muted-foreground mb-8">
-            Black Sultan Omega - Complete System Integration
+          <p className="text-2xl md:text-3xl text-muted-foreground mb-10 font-light">
+            Black Sultan Omega
           </p>
           
-          <div className="flex items-center justify-center gap-3 mb-6">
+          <div className="flex items-center justify-center gap-4 mb-8">
             <div className="relative">
-              <div className="w-3 h-3 bg-primary rounded-full animate-pulse-glow" />
-              <div className="absolute inset-0 w-3 h-3 bg-primary rounded-full animate-ping" />
+              <div className="w-4 h-4 bg-emerald-500 rounded-full animate-pulse-glow" />
+              <div className="absolute inset-0 w-4 h-4 bg-emerald-500 rounded-full animate-ping opacity-75" />
             </div>
-            <span className="text-lg font-semibold text-primary">OPERATIONAL</span>
+            <span className="text-xl font-bold text-emerald-400 uppercase tracking-wide">OPERATIONAL</span>
           </div>
           
           <p className="text-sm text-muted-foreground font-mono">
-            {currentTime.toLocaleString('de-DE', {
+            System Time: {currentTime.toLocaleString('de-DE', {
               year: 'numeric',
               month: '2-digit',
               day: '2-digit',
@@ -139,130 +124,125 @@ const Index = () => {
         </div>
       </section>
 
-      {/* System Layers Grid */}
-      <section className="container mx-auto px-6 py-16">
-        <div className="mb-12 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">System Architecture</h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Eight interconnected layers forming a unified superintelligence framework
+      {/* System Architecture Grid */}
+      <section className="container mx-auto px-6 py-20">
+        <div className="mb-16 text-center">
+          <h2 className="text-4xl md:text-5xl font-bold mb-4">System Architecture</h2>
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            Acht integrierte Layer bilden das Fundament der OMEGA Superintelligence
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {layers.map((layer, index) => (
-            <Card
-              key={layer.id}
-              className={`relative p-6 transition-all duration-300 cursor-pointer border-2 hover:shadow-2xl hover:scale-105 group ${
-                activeLayer === layer.id
-                  ? "border-primary shadow-lg shadow-primary/20"
-                  : "border-border/50 hover:border-primary/50"
-              }`}
-              onClick={() => setActiveLayer(activeLayer === layer.id ? null : layer.id)}
-              style={{
-                animationDelay: `${index * 100}ms`,
-              }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg" />
-              
-              <div className="relative">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="text-5xl group-hover:animate-float">{layer.icon}</div>
-                  <Badge
-                    variant="outline"
-                    className={`text-xs font-semibold ${statusColors[layer.status]}`}
-                  >
-                    {layer.status}
-                  </Badge>
-                </div>
-
-                <div className="mb-3">
-                  <div className="text-sm text-muted-foreground font-mono mb-1">
-                    Layer {layer.id}
+        {isLoading ? (
+          <div className="text-center py-20">
+            <div className="animate-spin text-6xl mb-4">⚙️</div>
+            <p className="text-xl text-muted-foreground">Initialisiere System...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {displayLayers.map((layer) => (
+              <Card 
+                key={layer.id}
+                className="relative overflow-hidden border-primary/20 bg-card/50 backdrop-blur hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:shadow-primary/20 group cursor-pointer"
+                onClick={() => navigate(`/layer/${layer.layer_id}`)}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                <CardHeader>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-4xl group-hover:scale-110 transition-transform">{layer.icon}</span>
+                    <span className={`text-sm font-semibold ${statusColors[layer.status]}`}>
+                      ● {layer.status.toUpperCase()}
+                    </span>
                   </div>
-                  <h3 className="text-xl font-bold leading-tight">{layer.name}</h3>
-                </div>
-
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-3xl font-bold text-primary">
-                    {layer.metric.value}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {layer.metric.label}
-                  </span>
-                </div>
-
-                {activeLayer === layer.id && (
-                  <div className="mt-4 pt-4 border-t border-border/50">
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {layer.description}
-                    </p>
+                  <CardTitle className="text-lg">{layer.name}</CardTitle>
+                </CardHeader>
+                
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Performance</span>
+                      <span className="font-semibold text-primary">{layer.metric}</span>
+                    </div>
+                    
+                    <div 
+                      className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveLayer(activeLayer === layer.layer_id ? null : layer.layer_id);
+                      }}
+                    >
+                      {activeLayer === layer.layer_id ? "▼" : "▶"} Details
+                    </div>
+                    
+                    {activeLayer === layer.layer_id && (
+                      <div className="mt-2 p-3 bg-background/50 rounded-lg text-sm animate-in fade-in duration-200">
+                        {layer.description}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* System Stats */}
-      <section className="border-y border-border/50 bg-card/30 backdrop-blur-sm">
-        <div className="container mx-auto px-6 py-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-primary mb-2">72+</div>
-              <div className="text-sm text-muted-foreground">Integrated Systems</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-primary mb-2">100+</div>
-              <div className="text-sm text-muted-foreground">AI Nodes</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-primary mb-2">1000+</div>
-              <div className="text-sm text-muted-foreground">Distributed Agents</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-primary mb-2">∞</div>
-              <div className="text-sm text-muted-foreground">Processing Capacity</div>
-            </div>
+      {/* System Metrics */}
+      <section className="border-y border-border bg-card/30 backdrop-blur">
+        <div className="container mx-auto px-6 py-16">
+          <h2 className="text-3xl font-bold text-center mb-12">System Stats</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {metrics && metrics.map((metric) => (
+              <Card key={metric.id} className="text-center border-primary/20">
+                <CardContent className="pt-6">
+                  <div className="text-3xl font-bold text-primary mb-2">
+                    {metric.metric_value.split(' ')[0]}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {metric.metric_type.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Call to Action */}
-      <section className="container mx-auto px-6 py-16 text-center">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            The Future of Superintelligence
+      <section className="container mx-auto px-6 py-20 text-center">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-4xl md:text-5xl font-bold mb-8">
+            Die Zukunft der Superintelligenz
           </h2>
-          <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-            OMEGA represents the convergence of quantum computing, neural networks, 
-            semantic understanding, and ethical governance into a unified superintelligence framework. 
-            Every layer works in harmony to create an unprecedented level of artificial consciousness.
+          <p className="text-lg text-muted-foreground mb-12 leading-relaxed max-w-3xl mx-auto">
+            OMEGA repräsentiert die Konvergenz modernster Technologien in einem einheitlichen Framework. 
+            Jeder Layer arbeitet harmonisch zusammen für beispiellose künstliche Intelligenz.
           </p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Button size="lg" className="text-lg">
-              Explore Systems
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button size="lg" onClick={() => navigate("/overview")} className="bg-primary hover:bg-primary/90">
+              <Activity className="mr-2 h-5 w-5" />
+              System Overview
             </Button>
-            <Button size="lg" variant="outline" className="text-lg">
-              View Documentation
+            <Button size="lg" variant="outline" className="border-primary/20 hover:bg-primary/10">
+              <Database className="mr-2 h-5 w-5" />
+              Backend verwalten
             </Button>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/50 bg-card/30 backdrop-blur-sm">
+      <footer className="border-t border-border bg-card/30 backdrop-blur">
         <div className="container mx-auto px-6 py-8 text-center text-sm text-muted-foreground">
-          <p>
-            OMEGA SUPERINTELLIGENCE v1.0 - Production Ready World Deployment
+          <p className="font-semibold mb-2">
+            OMEGA SUPERINTELLIGENCE v1.0.0
           </p>
-          <p className="mt-2">
-            Created with quantum precision and neural excellence
+          <p>
+            Powered by Lovable Cloud · Quantum-Enhanced Architecture
           </p>
         </div>
       </footer>
     </div>
   );
-};
-
-export default Index;
+}
