@@ -54,14 +54,14 @@ export default function AutonomyKernelPanel() {
       );
 
       toast({
-        title: "Task completed",
-        description: "Agent successfully executed the task",
+        title: "Task abgeschlossen",
+        description: "Agent hat Task erfolgreich ausgeführt",
       });
     } catch (error: any) {
       console.error("Error:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to execute task",
+        title: "Fehler",
+        description: error.message || "Task-Ausführung fehlgeschlagen",
         variant: "destructive",
       });
       
@@ -84,7 +84,7 @@ export default function AutonomyKernelPanel() {
       <CardContent className="space-y-4">
         <div className="flex gap-2">
           <Input
-            placeholder="Describe a task for the autonomous agents..."
+            placeholder="Beschreiben Sie einen Task für die autonomen Agenten..."
             value={task}
             onChange={(e) => setTask(e.target.value)}
             onKeyDown={(e) => {
@@ -103,24 +103,24 @@ export default function AutonomyKernelPanel() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setTask("Monitor system health and report anomalies")}
+            onClick={() => setTask("Überwache Systemgesundheit und melde Anomalien")}
           >
             System Health Check
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setTask("Optimize database performance")}
+            onClick={() => setTask("Optimiere Datenbankperformance")}
           >
             DB Optimization
           </Button>
         </div>
 
         <div className="space-y-3">
-          <h3 className="font-semibold">Agent Tasks</h3>
+          <h3 className="font-semibold">Agenten-Tasks</h3>
           {tasks.length === 0 ? (
             <p className="text-muted-foreground text-sm text-center py-8">
-              No tasks yet. Assign a task to the autonomous agents.
+              Noch keine Tasks. Weisen Sie den autonomen Agenten einen Task zu.
             </p>
           ) : (
             tasks.map((t) => (
@@ -142,7 +142,7 @@ export default function AutonomyKernelPanel() {
                   </p>
                   {t.result && (
                     <div className="bg-muted p-3 rounded text-sm mt-2">
-                      <p className="font-semibold mb-1">Result:</p>
+                      <p className="font-semibold mb-1">Ergebnis:</p>
                       <p className="whitespace-pre-wrap">{t.result}</p>
                     </div>
                   )}

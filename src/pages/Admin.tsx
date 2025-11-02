@@ -2,12 +2,17 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
-import { LogOut, Settings, Cpu, Network, Database } from "lucide-react";
+import { LogOut } from "lucide-react";
 import HybridAIPanel from "@/components/admin/HybridAIPanel";
 import AutonomyKernelPanel from "@/components/admin/AutonomyKernelPanel";
+import QuantumConsciousnessPanel from "@/components/admin/QuantumConsciousnessPanel";
+import SemanticEnginePanel from "@/components/admin/SemanticEnginePanel";
+import EthicsAlignmentPanel from "@/components/admin/EthicsAlignmentPanel";
+import EconomyEnginePanel from "@/components/admin/EconomyEnginePanel";
+import GovernancePanel from "@/components/admin/GovernancePanel";
+import PhysicalManifestationPanel from "@/components/admin/PhysicalManifestationPanel";
 import SystemManagementPanel from "@/components/admin/SystemManagementPanel";
 
 export default function Admin() {
@@ -44,7 +49,7 @@ export default function Admin() {
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast({
-        title: "Error",
+        title: "Fehler",
         description: error.message,
         variant: "destructive",
       });
@@ -56,7 +61,7 @@ export default function Admin() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">Lädt...</p>
       </div>
     );
   }
@@ -68,7 +73,7 @@ export default function Admin() {
           <div>
             <h1 className="text-4xl font-bold mb-2">OMEGA Admin Portal</h1>
             <p className="text-muted-foreground">
-              Welcome, {user?.email}
+              Willkommen, {user?.email}
             </p>
           </div>
           <div className="flex gap-2">
@@ -77,39 +82,59 @@ export default function Admin() {
             </Button>
             <Button variant="outline" onClick={handleSignOut}>
               <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+              Abmelden
             </Button>
           </div>
         </div>
 
-        <Tabs defaultValue="hybrid-ai" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="hybrid-ai">
-              <Cpu className="h-4 w-4 mr-2" />
-              Hybrid KI
-            </TabsTrigger>
-            <TabsTrigger value="autonomy">
-              <Network className="h-4 w-4 mr-2" />
-              Autonomy Kernel
-            </TabsTrigger>
-            <TabsTrigger value="system">
-              <Database className="h-4 w-4 mr-2" />
-              System Management
-            </TabsTrigger>
+        <Tabs defaultValue="quantum" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+            <TabsTrigger value="quantum">⚛️ Quanten</TabsTrigger>
+            <TabsTrigger value="hybrid-ai">🧠 Hybrid KI</TabsTrigger>
+            <TabsTrigger value="semantic">🔮 Semantik</TabsTrigger>
+            <TabsTrigger value="autonomy">🎯 Autonomie</TabsTrigger>
+            <TabsTrigger value="ethics">⚖️ Ethik</TabsTrigger>
+            <TabsTrigger value="economy">💎 Wirtschaft</TabsTrigger>
+            <TabsTrigger value="governance">🏛️ Governance</TabsTrigger>
+            <TabsTrigger value="physical">🌐 Physisch</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="quantum">
+            <QuantumConsciousnessPanel />
+          </TabsContent>
 
           <TabsContent value="hybrid-ai">
             <HybridAIPanel />
+          </TabsContent>
+
+          <TabsContent value="semantic">
+            <SemanticEnginePanel />
           </TabsContent>
 
           <TabsContent value="autonomy">
             <AutonomyKernelPanel />
           </TabsContent>
 
-          <TabsContent value="system">
-            <SystemManagementPanel />
+          <TabsContent value="ethics">
+            <EthicsAlignmentPanel />
+          </TabsContent>
+
+          <TabsContent value="economy">
+            <EconomyEnginePanel />
+          </TabsContent>
+
+          <TabsContent value="governance">
+            <GovernancePanel />
+          </TabsContent>
+
+          <TabsContent value="physical">
+            <PhysicalManifestationPanel />
           </TabsContent>
         </Tabs>
+
+        <div className="mt-8">
+          <SystemManagementPanel />
+        </div>
       </div>
     </div>
   );

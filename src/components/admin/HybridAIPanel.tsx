@@ -37,8 +37,8 @@ export default function HybridAIPanel() {
     } catch (error: any) {
       console.error("Error:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to get AI response",
+        title: "Fehler",
+        description: error.message || "KI-Antwort fehlgeschlagen",
         variant: "destructive",
       });
     } finally {
@@ -60,7 +60,7 @@ export default function HybridAIPanel() {
         <div className="border rounded-lg p-4 h-[400px] overflow-y-auto space-y-4">
           {messages.length === 0 ? (
             <p className="text-muted-foreground text-center">
-              Start a conversation with the Hybrid AI...
+              Starten Sie eine Konversation mit der Hybrid KI...
             </p>
           ) : (
             messages.map((msg, idx) => (
@@ -72,8 +72,8 @@ export default function HybridAIPanel() {
                     : "bg-muted mr-12"
                 }`}
               >
-                <p className="text-sm font-semibold mb-1">
-                  {msg.role === "user" ? "You" : "AI"}
+                  <p className="text-sm font-semibold mb-1">
+                  {msg.role === "user" ? "Sie" : "KI"}
                 </p>
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               </div>
@@ -82,14 +82,14 @@ export default function HybridAIPanel() {
           {loading && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              AI is thinking...
+              KI denkt nach...
             </div>
           )}
         </div>
 
         <div className="flex gap-2">
           <Textarea
-            placeholder="Ask the Hybrid AI anything..."
+            placeholder="Fragen Sie die Hybrid KI alles..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -109,21 +109,21 @@ export default function HybridAIPanel() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setInput("Explain quantum computing")}
+            onClick={() => setInput("Erkläre Quantencomputing")}
           >
-            Quantum Computing
+            Quantencomputing
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setInput("Analyze market trends")}
+            onClick={() => setInput("Analysiere Markttrends")}
           >
-            Market Analysis
+            Marktanalyse
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setInput("Optimize resource allocation")}
+            onClick={() => setInput("Optimiere Ressourcenzuweisung")}
           >
             Optimization
           </Button>

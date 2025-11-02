@@ -50,12 +50,12 @@ export default function Auth() {
       if (error) throw error;
 
       toast({
-        title: "Account created!",
-        description: "You can now log in with your credentials.",
+        title: "Konto erstellt!",
+        description: "Sie können sich jetzt mit Ihren Zugangsdaten anmelden.",
       });
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Fehler",
         description: error.message,
         variant: "destructive",
       });
@@ -77,8 +77,8 @@ export default function Auth() {
       if (error) throw error;
 
       toast({
-        title: "Welcome back!",
-        description: "Successfully signed in.",
+        title: "Willkommen zurück!",
+        description: "Erfolgreich angemeldet.",
       });
     } catch (error: any) {
       toast({
@@ -96,13 +96,13 @@ export default function Auth() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold">OMEGA System</CardTitle>
-          <CardDescription>Authentication Portal</CardDescription>
+          <CardDescription>Authentifizierungs-Portal</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="signin">Anmelden</TabsTrigger>
+              <TabsTrigger value="signup">Registrieren</TabsTrigger>
             </TabsList>
             
             <TabsContent value="signin">
@@ -126,7 +126,7 @@ export default function Auth() {
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Signing in..." : "Sign In"}
+                  {loading ? "Wird angemeldet..." : "Anmelden"}
                 </Button>
               </form>
             </TabsContent>
@@ -136,7 +136,7 @@ export default function Auth() {
                 <div>
                   <Input
                     type="text"
-                    placeholder="Full Name"
+                    placeholder="Vollständiger Name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
@@ -154,7 +154,7 @@ export default function Auth() {
                 <div>
                   <Input
                     type="password"
-                    placeholder="Password (min. 6 characters)"
+                    placeholder="Passwort (min. 6 Zeichen)"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -162,7 +162,7 @@ export default function Auth() {
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Creating account..." : "Sign Up"}
+                  {loading ? "Konto wird erstellt..." : "Registrieren"}
                 </Button>
               </form>
             </TabsContent>
