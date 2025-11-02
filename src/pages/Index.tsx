@@ -224,9 +224,9 @@ export default function Index() {
               <Activity className="mr-2 h-5 w-5" />
               System Overview
             </Button>
-            <Button size="lg" variant="outline" className="border-primary/20 hover:bg-primary/10">
+            <Button size="lg" variant="outline" className="border-primary/20 hover:bg-primary/10" onClick={() => navigate("/admin")}>
               <Database className="mr-2 h-5 w-5" />
-              Backend verwalten
+              Admin Portal
             </Button>
           </div>
         </div>
