@@ -20,6 +20,7 @@ export default function Admin() {
   const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     checkUser();
@@ -29,11 +30,33 @@ export default function Admin() {
         navigate("/auth");
       } else {
         setUser(session.user);
+        checkAdminRole(session.user.id);
       }
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const checkAdminRole = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .single();
+
+    if (error || !data) {
+      setIsAdmin(false);
+      toast({
+        title: "Zugriff verweigert",
+        description: "Sie benötigen Administrator-Rechte für diese Seite.",
+        variant: "destructive",
+      });
+      setTimeout(() => navigate("/"), 2000);
+    } else {
+      setIsAdmin(true);
+    }
+  };
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -41,6 +64,7 @@ export default function Admin() {
       navigate("/auth");
     } else {
       setUser(session.user);
+      await checkAdminRole(session.user.id);
     }
     setLoading(false);
   };
@@ -58,10 +82,12 @@ export default function Admin() {
     }
   };
 
-  if (loading) {
+  if (loading || !isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Lädt...</p>
+        <p className="text-muted-foreground">
+          {loading ? "Lädt..." : "Zugriff wird geprüft..."}
+        </p>
       </div>
     );
   }
