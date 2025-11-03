@@ -127,7 +127,7 @@ export default function Index() {
       {/* System Architecture Grid */}
       <section className="container mx-auto px-6 py-20">
         <div className="mb-16 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">System Architecture</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4">System-Architektur</h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Acht integrierte Layer bilden das Fundament der OMEGA Superintelligence
           </p>
@@ -161,7 +161,7 @@ export default function Index() {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Performance</span>
+                      <span className="text-sm text-muted-foreground">Leistung</span>
                       <span className="font-semibold text-primary">{layer.metric}</span>
                     </div>
                     
@@ -191,7 +191,7 @@ export default function Index() {
       {/* System Metrics */}
       <section className="border-y border-border bg-card/30 backdrop-blur">
         <div className="container mx-auto px-6 py-16">
-          <h2 className="text-3xl font-bold text-center mb-12">System Stats</h2>
+          <h2 className="text-3xl font-bold text-center mb-12">System-Statistiken</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {metrics && metrics.map((metric) => (
               <Card key={metric.id} className="text-center border-primary/20">
@@ -222,11 +222,11 @@ export default function Index() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" onClick={() => navigate("/overview")} className="bg-primary hover:bg-primary/90">
               <Activity className="mr-2 h-5 w-5" />
-              System Overview
+              System-Übersicht
             </Button>
             <Button size="lg" variant="outline" className="border-primary/20 hover:bg-primary/10" onClick={() => navigate("/admin")}>
               <Database className="mr-2 h-5 w-5" />
-              Admin Portal
+              Admin-Portal
             </Button>
           </div>
         </div>

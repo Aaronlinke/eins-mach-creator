@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Activity, Database, Wifi, AlertCircle } from "lucide-react";
+import { Activity, Database, Wifi, AlertCircle, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 
@@ -38,6 +38,19 @@ export default function SystemOverview() {
     },
   });
 
+  const { data: layers } = useQuery({
+    queryKey: ["system-layers-overview"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_layers")
+        .select("*")
+        .order("order_index", { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   useEffect(() => {
     const channel = supabase
       .channel('all-system-events')
@@ -66,10 +79,13 @@ export default function SystemOverview() {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6 flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-bold mb-2">System Overview</h1>
+            <h1 className="text-4xl font-bold mb-2">System-Übersicht</h1>
             <p className="text-muted-foreground">Echtzeit-Monitoring aller Systemkomponenten</p>
           </div>
-          <Button onClick={() => navigate("/")}>Dashboard</Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate("/")}>Dashboard</Button>
+            <Button variant="outline" onClick={() => navigate("/admin")}>Admin-Portal</Button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-6">
@@ -78,7 +94,7 @@ export default function SystemOverview() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Wifi className="h-5 w-5" />
-                API Connections
+                API-Verbindungen
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -91,7 +107,7 @@ export default function SystemOverview() {
                         <p className="text-xs text-muted-foreground">{conn.api_type}</p>
                       </div>
                       <Badge variant={conn.is_active ? "default" : "secondary"}>
-                        {conn.is_active ? "Active" : "Inactive"}
+                        {conn.is_active ? "Aktiv" : "Inaktiv"}
                       </Badge>
                     </div>
                   ))}
@@ -110,7 +126,7 @@ export default function SystemOverview() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Activity className="h-5 w-5" />
-                System Health
+                System-Gesundheit
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -136,12 +152,54 @@ export default function SystemOverview() {
           </Card>
         </div>
 
+        {/* System Layers Overview */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Layers className="h-5 w-5" />
+              System-Layer Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {layers && layers.length > 0 ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {layers.map((layer) => (
+                  <div 
+                    key={layer.id}
+                    className="p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                    onClick={() => navigate(`/layer/${layer.layer_id}`)}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-2xl">{layer.icon}</span>
+                      <Badge 
+                        variant={
+                          layer.status === 'operational' ? 'default' :
+                          layer.status === 'warning' ? 'secondary' : 'destructive'
+                        }
+                      >
+                        {layer.status === 'operational' ? 'Aktiv' :
+                         layer.status === 'warning' ? 'Warnung' : 'Kritisch'}
+                      </Badge>
+                    </div>
+                    <h3 className="font-semibold text-sm mb-1">{layer.name}</h3>
+                    <p className="text-xs text-muted-foreground">{layer.metric}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center py-8 text-muted-foreground">
+                Keine Layer-Daten verfügbar
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Live Event Stream */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5" />
-              Live Event Stream
+              Live-Event-Stream
               <Badge variant="outline" className="ml-2 animate-pulse">
                 LIVE
               </Badge>
