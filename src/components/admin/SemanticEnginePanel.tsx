@@ -36,14 +36,33 @@ export default function SemanticEnginePanel() {
 
       const response = data.choices[0].message.content;
       
-      // Simplified knowledge extraction
-      const mockNode: KnowledgeNode = {
+      // Extrahiere Relationen aus der AI-Antwort
+      const relations: string[] = [];
+      const lines = response.split('\n');
+      
+      for (const line of lines) {
+        if (line.match(/^[-•*]\s/) || line.match(/^\d+[.)]\s/)) {
+          const cleaned = line.replace(/^[-•*\d.)]\s*/, '').trim();
+          if (cleaned.length > 5 && cleaned.length < 50) {
+            relations.push(cleaned);
+          }
+        }
+      }
+
+      const knowledgeNode: KnowledgeNode = {
         concept: query,
-        relations: ["Verwandte Technologien", "Anwendungsbereiche", "Zukunftsperspektiven"],
+        relations: relations.length > 0 ? relations.slice(0, 6) : [
+          "Verwandte Technologien", 
+          "Anwendungsbereiche", 
+          "Zukunftsperspektiven",
+          "Technische Grundlagen",
+          "Marktentwicklung",
+          "Forschungsrichtungen"
+        ],
         context: response
       };
 
-      setKnowledge(mockNode);
+      setKnowledge(knowledgeNode);
       
       toast({
         title: "Wissensanalyse abgeschlossen",

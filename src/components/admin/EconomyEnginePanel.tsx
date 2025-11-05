@@ -37,19 +37,40 @@ export default function EconomyEnginePanel() {
 
       if (error) throw error;
 
-      const mockForecast: EconomicForecast = {
+      const response = data.choices[0].message.content;
+      
+      // Extrahiere ROI aus der Antwort
+      let roi = 25; // Default
+      const roiMatch = response.match(/roi[:\s]+(\d+(?:\.\d+)?)\s*%|(\d+(?:\.\d+)?)\s*%\s+roi/i);
+      if (roiMatch) {
+        roi = parseFloat(roiMatch[1] || roiMatch[2]);
+      }
+
+      // Extrahiere Zeitrahmen
+      let timeframe = "12-24 Monate";
+      const timeMatch = response.match(/(\d+(?:-\d+)?)\s+(monat|jahr|month|year)/i);
+      if (timeMatch) {
+        timeframe = timeMatch[0];
+      }
+
+      // Extrahiere Risikolevel
+      let riskLevel = "Mittel";
+      if (response.match(/hoch|high|erhöht/i)) riskLevel = "Hoch";
+      else if (response.match(/niedrig|low|gering/i)) riskLevel = "Niedrig";
+
+      const forecast: EconomicForecast = {
         investment: parseFloat(investment),
-        projectedROI: 34.7,
-        timeframe: "18-24 Monate",
-        riskLevel: "Mittel",
-        recommendation: data.choices[0].message.content
+        projectedROI: roi,
+        timeframe: timeframe,
+        riskLevel: riskLevel,
+        recommendation: response
       };
 
-      setForecast(mockForecast);
+      setForecast(forecast);
       
       toast({
         title: "Wirtschaftsprognose erstellt",
-        description: `Prognostizierter ROI: ${mockForecast.projectedROI}%`,
+        description: `Prognostizierter ROI: ${forecast.projectedROI}%`,
       });
     } catch (error: any) {
       toast({

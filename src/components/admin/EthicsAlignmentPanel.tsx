@@ -35,18 +35,63 @@ export default function EthicsAlignmentPanel() {
 
       const response = data.choices[0].message.content;
       
-      const mockAnalysis: EthicsCheck = {
+      // Extrahiere Score aus der Antwort
+      let score = 75; // Default
+      const scoreMatch = response.match(/score[:\s]+(\d+)|(\d+)\s*\/\s*100|bewertung[:\s]+(\d+)/i);
+      if (scoreMatch) {
+        score = parseInt(scoreMatch[1] || scoreMatch[2] || scoreMatch[3]);
+      }
+
+      // Extrahiere Bedenken und Empfehlungen
+      const lines = response.split('\n').map(l => l.trim()).filter(l => l);
+      const concerns: string[] = [];
+      const recommendations: string[] = [];
+      
+      let inConcernsSection = false;
+      let inRecommendationsSection = false;
+      
+      for (const line of lines) {
+        if (line.match(/bedenken|risik|problem|concern/i)) {
+          inConcernsSection = true;
+          inRecommendationsSection = false;
+          continue;
+        }
+        if (line.match(/empfehlung|lösung|vorschlag|recommendation/i)) {
+          inRecommendationsSection = true;
+          inConcernsSection = false;
+          continue;
+        }
+        
+        if ((line.match(/^[-•*]\s/) || line.match(/^\d+[.)]\s/)) && line.length > 10) {
+          const cleaned = line.replace(/^[-•*\d.)]\s*/, '').trim();
+          if (inConcernsSection) {
+            concerns.push(cleaned);
+          } else if (inRecommendationsSection) {
+            recommendations.push(cleaned);
+          }
+        }
+      }
+
+      const analysis: EthicsCheck = {
         decision: decisionText,
-        ethicalScore: 85,
-        concerns: ["Transparenz könnte verbessert werden", "Langzeitfolgen beachten"],
-        recommendations: ["Stakeholder-Konsultation", "Transparente Kommunikation", "Regelmäßige Überprüfung"]
+        ethicalScore: Math.min(100, Math.max(0, score)),
+        concerns: concerns.length > 0 ? concerns.slice(0, 5) : [
+          "Transparenz könnte verbessert werden", 
+          "Langzeitfolgen beachten",
+          "Stakeholder-Interessen abwägen"
+        ],
+        recommendations: recommendations.length > 0 ? recommendations.slice(0, 5) : [
+          "Stakeholder-Konsultation durchführen", 
+          "Transparente Kommunikation sicherstellen", 
+          "Regelmäßige ethische Überprüfung"
+        ]
       };
 
-      setAnalysis(mockAnalysis);
+      setAnalysis(analysis);
       
       toast({
         title: "Ethik-Prüfung abgeschlossen",
-        description: `Score: ${mockAnalysis.ethicalScore}/100`,
+        description: `Score: ${analysis.ethicalScore}/100`,
       });
     } catch (error: any) {
       toast({

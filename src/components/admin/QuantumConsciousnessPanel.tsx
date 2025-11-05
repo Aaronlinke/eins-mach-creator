@@ -35,15 +35,45 @@ export default function QuantumConsciousnessPanel() {
 
       const response = data.choices[0].message.content;
       
-      // Parse scenarios (simplified - in production würde man structured output verwenden)
-      const mockScenarios: Scenario[] = [
-        { id: "1", title: "Optimistisches Szenario", probability: 35, outcome: "Hohe Erfolgsrate mit minimalen Risiken" },
-        { id: "2", title: "Realistisches Szenario", probability: 45, outcome: "Moderate Erfolgsrate mit kalkulierbaren Risiken" },
-        { id: "3", title: "Konservatives Szenario", probability: 15, outcome: "Niedrige Erfolgsrate, aber sehr sicher" },
-        { id: "4", title: "Disruptives Szenario", probability: 5, outcome: "Sehr hohe Erfolgsrate mit hohem Risiko" },
+      // Versuche Szenarien aus der AI-Antwort zu extrahieren
+      const lines = response.split('\n').filter(l => l.trim());
+      const parsedScenarios: Scenario[] = [];
+      
+      let currentScenario: Partial<Scenario> = {};
+      for (const line of lines) {
+        if (line.match(/szenario|scenario/i) && (line.includes('1') || line.includes('2') || line.includes('3') || line.includes('4'))) {
+          if (currentScenario.title) {
+            parsedScenarios.push(currentScenario as Scenario);
+          }
+          currentScenario = {
+            id: (parsedScenarios.length + 1).toString(),
+            title: line.replace(/^\d+[.:\-)\s]*/, '').trim(),
+            probability: 0,
+            outcome: ""
+          };
+        } else if (currentScenario.title && line.match(/\d+%/)) {
+          const match = line.match(/(\d+)%/);
+          if (match) currentScenario.probability = parseInt(match[1]);
+        } else if (currentScenario.title && currentScenario.probability && line.length > 10) {
+          currentScenario.outcome = line.trim();
+          parsedScenarios.push(currentScenario as Scenario);
+          currentScenario = {};
+        }
+      }
+      
+      if (currentScenario.title && currentScenario.probability) {
+        parsedScenarios.push(currentScenario as Scenario);
+      }
+
+      // Fallback falls Parsing fehlschlägt
+      const scenariosToUse = parsedScenarios.length >= 3 ? parsedScenarios : [
+        { id: "1", title: "Optimistisches Szenario", probability: 35, outcome: response.substring(0, 100) },
+        { id: "2", title: "Realistisches Szenario", probability: 45, outcome: response.substring(100, 200) || "Siehe Analyse" },
+        { id: "3", title: "Konservatives Szenario", probability: 15, outcome: response.substring(200, 300) || "Siehe Analyse" },
+        { id: "4", title: "Alternatives Szenario", probability: 5, outcome: "Basierend auf AI-Analyse" },
       ];
 
-      setScenarios(mockScenarios);
+      setScenarios(scenariosToUse);
       
       toast({
         title: "Quanten-Analyse abgeschlossen",
