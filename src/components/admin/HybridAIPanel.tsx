@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Send, Copy, Check } from "lucide-react";
+import { Loader2, Send, Copy, Check, Trash2, Plus } from "lucide-react";
 
 export default function HybridAIPanel() {
   const { toast } = useToast();
@@ -12,6 +12,70 @@ export default function HybridAIPanel() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadConversation();
+  }, []);
+
+  const loadConversation = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setUserId(user.id);
+
+    // Get or create conversation
+    const { data: conversations } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    let currentConvId: string;
+
+    if (conversations && conversations.length > 0) {
+      currentConvId = conversations[0].id;
+    } else {
+      const { data: newConv } = await supabase
+        .from('conversations')
+        .insert({ user_id: user.id, title: 'Hybrid AI Chat' })
+        .select()
+        .single();
+      currentConvId = newConv!.id;
+    }
+
+    setConversationId(currentConvId);
+
+    // Load messages
+    const { data: chatMessages } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('conversation_id', currentConvId)
+      .order('created_at', { ascending: true });
+
+    if (chatMessages) {
+      setMessages(chatMessages.map(msg => ({ role: msg.role, content: msg.content })));
+    }
+  };
+
+  const saveMessage = async (role: string, content: string) => {
+    if (!userId || !conversationId) return;
+
+    await supabase.from('chat_messages').insert({
+      user_id: userId,
+      conversation_id: conversationId,
+      role,
+      content
+    });
+
+    // Update conversation timestamp
+    await supabase
+      .from('conversations')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', conversationId);
+  };
 
   const copyToClipboard = async (text: string, index: number) => {
     try {
@@ -31,14 +95,50 @@ export default function HybridAIPanel() {
     }
   };
 
+  const clearConversation = async () => {
+    if (!conversationId) return;
+
+    await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('conversation_id', conversationId);
+
+    setMessages([]);
+    toast({
+      title: "Gelöscht",
+      description: "Konversation wurde gelöscht",
+    });
+  };
+
+  const newConversation = async () => {
+    if (!userId) return;
+
+    const { data: newConv } = await supabase
+      .from('conversations')
+      .insert({ user_id: userId, title: 'Neue Konversation' })
+      .select()
+      .single();
+
+    setConversationId(newConv!.id);
+    setMessages([]);
+    
+    toast({
+      title: "Neue Konversation",
+      description: "Neue Konversation gestartet",
+    });
+  };
+
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !userId || !conversationId) return;
 
     const userMessage = { role: "user", content: input };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setInput("");
     setLoading(true);
+
+    // Save user message
+    await saveMessage("user", userMessage.content);
 
     try {
       const { data, error } = await supabase.functions.invoke('hybrid-ai-chat', {
@@ -53,6 +153,9 @@ export default function HybridAIPanel() {
       };
 
       setMessages([...updatedMessages, assistantMessage]);
+      
+      // Save assistant message
+      await saveMessage("assistant", assistantMessage.content);
     } catch (error: any) {
       console.error("Error:", error);
       toast({
@@ -68,12 +171,26 @@ export default function HybridAIPanel() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          🧠 Hybrid AI - Neural-Symbolic Fusion
-        </CardTitle>
-        <CardDescription>
-          Combining deep learning with symbolic reasoning for explainable AI
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              🧠 Hybrid AI - Neural-Symbolic Fusion
+            </CardTitle>
+            <CardDescription>
+              Combining deep learning with symbolic reasoning for explainable AI
+            </CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={newConversation}>
+              <Plus className="h-4 w-4 mr-1" />
+              Neu
+            </Button>
+            <Button variant="outline" size="sm" onClick={clearConversation}>
+              <Trash2 className="h-4 w-4 mr-1" />
+              Löschen
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="border rounded-lg p-4 h-[400px] overflow-y-auto space-y-4">
