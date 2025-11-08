@@ -4,13 +4,32 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, Copy, Check } from "lucide-react";
 
 export default function HybridAIPanel() {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  const copyToClipboard = async (text: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIndex(index);
+      toast({
+        title: "Kopiert!",
+        description: "Text wurde in die Zwischenablage kopiert",
+      });
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (error) {
+      toast({
+        title: "Fehler",
+        description: "Kopieren fehlgeschlagen",
+        variant: "destructive",
+      });
+    }
+  };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -66,16 +85,32 @@ export default function HybridAIPanel() {
             messages.map((msg, idx) => (
               <div
                 key={idx}
-                className={`p-3 rounded-lg ${
+                className={`p-3 rounded-lg relative group ${
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground ml-12"
                     : "bg-muted mr-12"
                 }`}
               >
-                  <p className="text-sm font-semibold mb-1">
-                  {msg.role === "user" ? "Sie" : "KI"}
-                </p>
-                <p className="whitespace-pre-wrap">{msg.content}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold mb-1">
+                      {msg.role === "user" ? "Sie" : "KI"}
+                    </p>
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => copyToClipboard(msg.content, idx)}
+                  >
+                    {copiedIndex === idx ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
             ))
           )}
