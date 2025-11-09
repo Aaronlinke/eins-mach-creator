@@ -16,6 +16,7 @@ import PhysicalManifestationPanel from "@/components/admin/PhysicalManifestation
 import SystemManagementPanel from "@/components/admin/SystemManagementPanel";
 import { WebAutomationPanel } from "@/components/admin/WebAutomationPanel";
 import { MobileConnectionPanel } from "@/components/admin/MobileConnectionPanel";
+import { AutonomousAIPanel } from "@/components/admin/AutonomousAIPanel";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -115,8 +116,9 @@ export default function Admin() {
           </div>
         </div>
 
-        <Tabs defaultValue="web-automation" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
+        <Tabs defaultValue="autonomous" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-11">
+            <TabsTrigger value="autonomous">🤖 Autonom</TabsTrigger>
             <TabsTrigger value="web-automation">🌐 Web</TabsTrigger>
             <TabsTrigger value="mobile">📱 Mobile</TabsTrigger>
             <TabsTrigger value="quantum">⚛️ Quanten</TabsTrigger>
@@ -128,6 +130,10 @@ export default function Admin() {
             <TabsTrigger value="governance">🏛️ Governance</TabsTrigger>
             <TabsTrigger value="physical">🌐 Physisch</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="autonomous">
+            <AutonomousAIPanel />
+          </TabsContent>
 
           <TabsContent value="web-automation">
             <WebAutomationPanel />

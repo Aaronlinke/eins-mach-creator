@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_knowledge: {
+        Row: {
+          category: string
+          confidence: number | null
+          created_at: string
+          id: string
+          key: string
+          source: string | null
+          updated_at: string
+          user_id: string
+          value: Json
+        }
+        Insert: {
+          category: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          key: string
+          source?: string | null
+          updated_at?: string
+          user_id: string
+          value: Json
+        }
+        Update: {
+          category?: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          key?: string
+          source?: string | null
+          updated_at?: string
+          user_id?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       api_connections: {
         Row: {
           api_type: string
@@ -44,6 +80,104 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           last_sync?: string | null
+        }
+        Relationships: []
+      }
+      autonomous_actions: {
+        Row: {
+          action_data: Json | null
+          action_type: string
+          executed_at: string
+          id: string
+          result: Json | null
+          success: boolean
+          task_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action_data?: Json | null
+          action_type: string
+          executed_at?: string
+          id?: string
+          result?: Json | null
+          success: boolean
+          task_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action_data?: Json | null
+          action_type?: string
+          executed_at?: string
+          id?: string
+          result?: Json | null
+          success?: boolean
+          task_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autonomous_actions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "autonomous_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      autonomous_tasks: {
+        Row: {
+          config: Json | null
+          created_at: string
+          description: string | null
+          error_log: string | null
+          id: string
+          last_run_at: string | null
+          next_run_at: string | null
+          priority: string
+          result: Json | null
+          schedule_cron: string | null
+          status: string
+          task_type: string
+          title: string
+          trigger_conditions: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          error_log?: string | null
+          id?: string
+          last_run_at?: string | null
+          next_run_at?: string | null
+          priority?: string
+          result?: Json | null
+          schedule_cron?: string | null
+          status?: string
+          task_type: string
+          title: string
+          trigger_conditions?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          error_log?: string | null
+          id?: string
+          last_run_at?: string | null
+          next_run_at?: string | null
+          priority?: string
+          result?: Json | null
+          schedule_cron?: string | null
+          status?: string
+          task_type?: string
+          title?: string
+          trigger_conditions?: Json | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
