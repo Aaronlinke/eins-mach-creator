@@ -1,0 +1,41 @@
+{
+  "name": "EINS MACH Creator - Universal AI System",
+  "short_name": "EINS MACH",
+  "description": "Vollständiges AI-Betriebssystem mit Autonomie, Bewusstsein und physischer Manifestation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#8B5CF6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/placeholder.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/placeholder.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities", "business"],
+  "shortcuts": [
+    {
+      "name": "Admin Dashboard",
+      "short_name": "Admin",
+      "description": "Öffne Admin Dashboard",
+      "url": "/admin",
+      "icons": [{ "src": "/placeholder.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "System Overview",
+      "short_name": "Overview",
+      "description": "Öffne System Übersicht",
+      "url": "/system-overview",
+      "icons": [{ "src": "/placeholder.svg", "sizes": "192x192" }]
+    }
+  ]
+}

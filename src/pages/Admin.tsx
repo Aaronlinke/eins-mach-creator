@@ -14,6 +14,8 @@ import EconomyEnginePanel from "@/components/admin/EconomyEnginePanel";
 import GovernancePanel from "@/components/admin/GovernancePanel";
 import PhysicalManifestationPanel from "@/components/admin/PhysicalManifestationPanel";
 import SystemManagementPanel from "@/components/admin/SystemManagementPanel";
+import { WebAutomationPanel } from "@/components/admin/WebAutomationPanel";
+import { MobileConnectionPanel } from "@/components/admin/MobileConnectionPanel";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -113,8 +115,10 @@ export default function Admin() {
           </div>
         </div>
 
-        <Tabs defaultValue="quantum" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+        <Tabs defaultValue="web-automation" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
+            <TabsTrigger value="web-automation">🌐 Web</TabsTrigger>
+            <TabsTrigger value="mobile">📱 Mobile</TabsTrigger>
             <TabsTrigger value="quantum">⚛️ Quanten</TabsTrigger>
             <TabsTrigger value="hybrid-ai">🧠 Hybrid KI</TabsTrigger>
             <TabsTrigger value="semantic">🔮 Semantik</TabsTrigger>
@@ -124,6 +128,14 @@ export default function Admin() {
             <TabsTrigger value="governance">🏛️ Governance</TabsTrigger>
             <TabsTrigger value="physical">🌐 Physisch</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="web-automation">
+            <WebAutomationPanel />
+          </TabsContent>
+
+          <TabsContent value="mobile">
+            <MobileConnectionPanel />
+          </TabsContent>
 
           <TabsContent value="quantum">
             <QuantumConsciousnessPanel />
