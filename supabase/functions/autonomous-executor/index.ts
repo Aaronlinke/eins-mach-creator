@@ -158,6 +158,9 @@ async function executeTask(task: any, supabase: any) {
     case 'condition_trigger':
       return await executeConditionTrigger(task, supabase);
     
+    case 'context_learning':
+      return await executeContextLearning(task, supabase);
+    
     default:
       throw new Error(`Unbekannter Task-Typ: ${task.task_type}`);
   }
@@ -323,4 +326,149 @@ function calculateNextRun(task: any) {
     now.setDate(now.getDate() + 1);
   }
   return now.toISOString();
+}
+
+// Execute Context Learning Task
+async function executeContextLearning(task: any, supabase: any) {
+  try {
+    const userId = task.user_id;
+    
+    // Analyze user behavior patterns
+    const { data: recentActions } = await supabase
+      .from('autonomous_actions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('executed_at', { ascending: false })
+      .limit(100);
+    
+    const { data: chatMessages } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    
+    // Extract patterns
+    const patterns = {
+      activeHours: extractActiveHours(recentActions || []),
+      frequentActions: extractFrequentActions(recentActions || []),
+      commonTopics: extractTopicsFromChat(chatMessages || []),
+      interactionStyle: analyzeInteractionStyle(chatMessages || []),
+    };
+    
+    // Store learned context
+    await supabase.from('ai_knowledge').insert({
+      user_id: userId,
+      category: 'context_patterns',
+      key: `patterns_${new Date().toISOString().split('T')[0]}`,
+      value: patterns,
+      confidence: 0.85,
+      source: 'autonomous_learning'
+    });
+    
+    // Generate proactive suggestions
+    const suggestions = generateProactiveSuggestions(patterns);
+    
+    // Store suggestions
+    await supabase.from('ai_knowledge').insert({
+      user_id: userId,
+      category: 'suggestions',
+      key: `suggestions_${new Date().toISOString().split('T')[0]}`,
+      value: { suggestions },
+      confidence: 0.75,
+      source: 'context_learning'
+    });
+    
+    return {
+      success: true,
+      patterns,
+      suggestions,
+      message: `Context learning completed. Found ${Object.keys(patterns).length} pattern categories.`
+    };
+  } catch (error) {
+    console.error('Context learning error:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+// Extract active hours from user actions
+function extractActiveHours(actions: any[]): number[] {
+  const hourCounts: { [key: number]: number } = {};
+  
+  actions.forEach(action => {
+    const hour = new Date(action.executed_at).getHours();
+    hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+  });
+  
+  return Object.entries(hourCounts)
+    .sort(([, a], [, b]) => (b as number) - (a as number))
+    .slice(0, 3)
+    .map(([hour]) => parseInt(hour));
+}
+
+// Extract frequent action types
+function extractFrequentActions(actions: any[]): string[] {
+  const actionCounts: { [key: string]: number } = {};
+  
+  actions.forEach(action => {
+    actionCounts[action.action_type] = (actionCounts[action.action_type] || 0) + 1;
+  });
+  
+  return Object.entries(actionCounts)
+    .sort(([, a], [, b]) => (b as number) - (a as number))
+    .slice(0, 5)
+    .map(([type]) => type);
+}
+
+// Extract topics from chat messages
+function extractTopicsFromChat(messages: any[]): string[] {
+  const keywords = new Map<string, number>();
+  
+  messages.forEach(msg => {
+    const words = msg.content.toLowerCase().split(/\s+/);
+    words.forEach((word: string) => {
+      if (word.length > 4) {
+        keywords.set(word, (keywords.get(word) || 0) + 1);
+      }
+    });
+  });
+  
+  return Array.from(keywords.entries())
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 10)
+    .map(([word]) => word);
+}
+
+// Analyze interaction style
+function analyzeInteractionStyle(messages: any[]): string {
+  if (messages.length === 0) return 'unbekannt';
+  
+  const avgLength = messages.reduce((sum, msg) => sum + msg.content.length, 0) / messages.length;
+  const questionCount = messages.filter(msg => msg.content.includes('?')).length;
+  
+  if (avgLength < 50) return 'kurz_und_direkt';
+  if (questionCount > messages.length * 0.3) return 'fragend_explorativ';
+  if (avgLength > 200) return 'detailliert_ausfuehrlich';
+  return 'ausgewogen';
+}
+
+// Generate proactive suggestions based on patterns
+function generateProactiveSuggestions(patterns: any): string[] {
+  const suggestions = [];
+  
+  if (patterns.activeHours && patterns.activeHours.length > 0) {
+    suggestions.push(`Optimale Aktivitätszeit: ${patterns.activeHours[0]}:00 Uhr`);
+  }
+  
+  if (patterns.frequentActions && patterns.frequentActions.length > 0) {
+    suggestions.push(`Häufigste Aktion: ${patterns.frequentActions[0]}`);
+  }
+  
+  if (patterns.commonTopics && patterns.commonTopics.length > 0) {
+    suggestions.push(`Hauptthema: ${patterns.commonTopics[0]}`);
+  }
+  
+  suggestions.push(`Interaktionsstil: ${patterns.interactionStyle || 'analysiert'}`);
+  
+  return suggestions;
 }
