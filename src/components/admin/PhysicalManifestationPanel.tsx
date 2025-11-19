@@ -1,58 +1,63 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wifi, WifiOff, Activity } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Wifi, WifiOff, Activity, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 interface IoTNode {
   id: string;
   name: string;
   location: string;
   status: "online" | "offline";
-  metrics: { cpu: number; memory: number; temp: number };
+  cpu_usage: number;
+  memory_usage: number;
+  temperature: number;
 }
 
 export default function PhysicalManifestationPanel() {
-  const [nodes] = useState<IoTNode[]>([
-    { 
-      id: "1", 
-      name: "Edge Node Frankfurt", 
-      location: "DE-FRA-01", 
-      status: "online",
-      metrics: { cpu: 45, memory: 67, temp: 42 }
-    },
-    { 
-      id: "2", 
-      name: "Edge Node Amsterdam", 
-      location: "NL-AMS-02", 
-      status: "online",
-      metrics: { cpu: 38, memory: 54, temp: 39 }
-    },
-    { 
-      id: "3", 
-      name: "Edge Node London", 
-      location: "UK-LON-01", 
-      status: "offline",
-      metrics: { cpu: 0, memory: 0, temp: 0 }
-    },
-    { 
-      id: "4", 
-      name: "Edge Node Paris", 
-      location: "FR-PAR-03", 
-      status: "online",
-      metrics: { cpu: 52, memory: 71, temp: 44 }
-    },
-  ]);
-
+  const { toast } = useToast();
+  const [nodes, setNodes] = useState<IoTNode[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dataRate, setDataRate] = useState(1.2);
 
   useEffect(() => {
+    loadNodes();
+    
     const interval = setInterval(() => {
       setDataRate(prev => +(prev + (Math.random() - 0.5) * 0.1).toFixed(2));
     }, 2000);
+    
     return () => clearInterval(interval);
   }, []);
 
+  const loadNodes = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('iot_nodes')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setNodes((data || []).map(n => ({
+        ...n,
+        status: n.status as "online" | "offline"
+      })));
+    } catch (error: any) {
+      toast({
+        title: "Fehler",
+        description: "IoT Nodes konnten nicht geladen werden",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onlineNodes = nodes.filter(n => n.status === "online").length;
+  const totalNodes = 247;
 
   return (
     <Card>
@@ -61,7 +66,7 @@ export default function PhysicalManifestationPanel() {
           🌐 Physical Manifestation - IoT & Edge Computing
         </CardTitle>
         <CardDescription>
-          Verteiltes Infrastruktur-Netzwerk mit 247 Nodes
+          Verteiltes Infrastruktur-Netzwerk mit {totalNodes} Nodes
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -92,8 +97,21 @@ export default function PhysicalManifestationPanel() {
         </div>
 
         <div className="space-y-3">
-          <h3 className="font-semibold mt-6">Edge Computing Nodes</h3>
-          {nodes.map((node) => (
+          <div className="flex items-center justify-between mt-6">
+            <h3 className="font-semibold">Edge Computing Nodes</h3>
+            <Button variant="outline" size="sm" onClick={loadNodes} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aktualisieren"}
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+            </div>
+          ) : nodes.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Keine Nodes gefunden</p>
+          ) : (
+            nodes.map((node) => (
             <Card key={node.id} className={
               node.status === "online" 
                 ? "border-emerald-500/50 bg-emerald-500/5" 
@@ -122,10 +140,10 @@ export default function PhysicalManifestationPanel() {
                         <div className="flex-1 bg-muted rounded-full h-2">
                           <div 
                             className="bg-primary h-full rounded-full transition-all"
-                            style={{ width: `${node.metrics.cpu}%` }}
+                            style={{ width: `${node.cpu_usage}%` }}
                           />
                         </div>
-                        <span className="font-bold text-xs">{node.metrics.cpu}%</span>
+                        <span className="font-bold text-xs">{node.cpu_usage}%</span>
                       </div>
                     </div>
                     <div className="bg-background/50 p-2 rounded">
@@ -134,21 +152,44 @@ export default function PhysicalManifestationPanel() {
                         <div className="flex-1 bg-muted rounded-full h-2">
                           <div 
                             className="bg-blue-500 h-full rounded-full transition-all"
-                            style={{ width: `${node.metrics.memory}%` }}
+                            style={{ width: `${node.memory_usage}%` }}
                           />
                         </div>
-                        <span className="font-bold text-xs">{node.metrics.memory}%</span>
+                        <span className="font-bold text-xs">{node.memory_usage}%</span>
                       </div>
                     </div>
                     <div className="bg-background/50 p-2 rounded">
                       <p className="text-muted-foreground mb-1">Temp</p>
-                      <p className="font-bold">{node.metrics.temp}°C</p>
+                      <p className="font-bold">{node.temperature}°C</p>
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
-          ))}
+            ))
+          )}
+        </div>
+
+        <div className="mt-6 p-4 bg-muted/30 rounded-lg">
+          <h4 className="font-semibold mb-2">Netzwerk-Statistik</h4>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">Gesamt-Nodes</p>
+              <p className="font-semibold text-lg">{totalNodes}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Verfügbarkeit</p>
+              <p className="font-semibold text-lg">{((onlineNodes / nodes.length) * 100).toFixed(1)}%</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Durchschn. Latenz</p>
+              <p className="font-semibold text-lg">12ms</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Daten/Tag</p>
+              <p className="font-semibold text-lg">1.2 PB</p>
+            </div>
+          </div>
         </div>
 
         <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 mt-6">

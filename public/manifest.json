@@ -9,15 +9,15 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/placeholder.svg",
+      "src": "/icon-512.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/placeholder.svg",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
@@ -28,14 +28,14 @@
       "short_name": "Admin",
       "description": "Öffne Admin Dashboard",
       "url": "/admin",
-      "icons": [{ "src": "/placeholder.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-512.png", "sizes": "192x192" }]
     },
     {
       "name": "System Overview",
       "short_name": "Overview",
       "description": "Öffne System Übersicht",
       "url": "/system-overview",
-      "icons": [{ "src": "/placeholder.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-512.png", "sizes": "192x192" }]
     }
   ]
 }

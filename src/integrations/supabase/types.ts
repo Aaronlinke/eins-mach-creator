@@ -235,6 +235,75 @@ export type Database = {
         }
         Relationships: []
       }
+      governance_proposals: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          status: string | null
+          title: string
+          updated_at: string | null
+          votes_no: number | null
+          votes_yes: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          votes_no?: number | null
+          votes_yes?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          votes_no?: number | null
+          votes_yes?: number | null
+        }
+        Relationships: []
+      }
+      iot_nodes: {
+        Row: {
+          cpu_usage: number | null
+          created_at: string | null
+          id: string
+          location: string
+          memory_usage: number | null
+          name: string
+          status: string | null
+          temperature: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          cpu_usage?: number | null
+          created_at?: string | null
+          id?: string
+          location: string
+          memory_usage?: number | null
+          name: string
+          status?: string | null
+          temperature?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          cpu_usage?: number | null
+          created_at?: string | null
+          id?: string
+          location?: string
+          memory_usage?: number | null
+          name?: string
+          status?: string | null
+          temperature?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null

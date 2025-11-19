@@ -1,30 +1,82 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Vote, Users, CheckCircle2 } from "lucide-react";
+import { Vote, Users, CheckCircle2, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Proposal {
   id: string;
   title: string;
-  votes: { yes: number; no: number };
+  description?: string;
+  votes_yes: number;
+  votes_no: number;
   status: "active" | "passed" | "rejected";
 }
 
 export default function GovernancePanel() {
   const { toast } = useToast();
-  const [proposals] = useState<Proposal[]>([
-    { id: "1", title: "Erhöhung der KI-Transparenz-Standards", votes: { yes: 847, no: 123 }, status: "active" },
-    { id: "2", title: "Integration neuer Sicherheitsprotokolle", votes: { yes: 1234, no: 45 }, status: "passed" },
-    { id: "3", title: "Expansion in neue Märkte", votes: { yes: 456, no: 789 }, status: "rejected" },
-  ]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleVote = (proposalId: string, vote: "yes" | "no") => {
-    toast({
-      title: "Stimme registriert",
-      description: `Ihre Stimme wurde erfolgreich gezählt.`,
-    });
+  useEffect(() => {
+    loadProposals();
+  }, []);
+
+  const loadProposals = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('governance_proposals')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProposals((data || []).map(p => ({
+        ...p,
+        status: p.status as "active" | "passed" | "rejected"
+      })));
+    } catch (error: any) {
+      toast({
+        title: "Fehler",
+        description: "Proposals konnten nicht geladen werden",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVote = async (proposalId: string, vote: "yes" | "no") => {
+    try {
+      const proposal = proposals.find(p => p.id === proposalId);
+      if (!proposal) return;
+
+      const updates = vote === "yes" 
+        ? { votes_yes: proposal.votes_yes + 1 }
+        : { votes_no: proposal.votes_no + 1 };
+
+      const { error } = await supabase
+        .from('governance_proposals')
+        .update(updates)
+        .eq('id', proposalId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Stimme registriert",
+        description: `Ihre Stimme wurde erfolgreich gezählt.`,
+      });
+
+      loadProposals();
+    } catch (error: any) {
+      toast({
+        title: "Fehler",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -63,26 +115,42 @@ export default function GovernancePanel() {
         </div>
 
         <div className="space-y-3">
-          <h3 className="font-semibold mt-6">Aktive Abstimmungen</h3>
-          {proposals.map((proposal) => (
+          <div className="flex items-center justify-between mt-6">
+            <h3 className="font-semibold">Aktive Abstimmungen</h3>
+            <Button variant="outline" size="sm" onClick={loadProposals} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aktualisieren"}
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+            </div>
+          ) : proposals.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Keine Proposals gefunden</p>
+          ) : (
+            proposals.map((proposal) => (
             <Card key={proposal.id} className={
               proposal.status === "passed" ? "border-emerald-500/50 bg-emerald-500/5" :
               proposal.status === "rejected" ? "border-red-500/50 bg-red-500/5" :
               "border-blue-500/50 bg-blue-500/5"
             }>
               <CardContent className="pt-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h4 className="font-semibold mb-1">{proposal.title}</h4>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-emerald-600">
-                        ✓ {proposal.votes.yes} Ja
-                      </span>
-                      <span className="text-red-600">
-                        ✗ {proposal.votes.no} Nein
-                      </span>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-semibold mb-1">{proposal.title}</h4>
+                      {proposal.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{proposal.description}</p>
+                      )}
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-emerald-600">
+                          ✓ {proposal.votes_yes} Ja
+                        </span>
+                        <span className="text-red-600">
+                          ✗ {proposal.votes_no} Nein
+                        </span>
+                      </div>
                     </div>
-                  </div>
                   <Badge variant={
                     proposal.status === "passed" ? "default" :
                     proposal.status === "rejected" ? "destructive" :
@@ -117,13 +185,14 @@ export default function GovernancePanel() {
                   <div 
                     className="h-full bg-emerald-500"
                     style={{ 
-                      width: `${(proposal.votes.yes / (proposal.votes.yes + proposal.votes.no)) * 100}%` 
+                      width: `${(proposal.votes_yes / (proposal.votes_yes + proposal.votes_no)) * 100}%` 
                     }}
                   />
                 </div>
               </CardContent>
             </Card>
-          ))}
+            ))
+          )}
         </div>
 
         <Button className="w-full" variant="outline">
