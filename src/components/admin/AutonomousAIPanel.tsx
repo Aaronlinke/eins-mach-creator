@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Brain, Play, Plus, Trash2, RefreshCw, Zap, TrendingUp, Clock } from 'lucide-react';
+import { useContextTracking } from '@/hooks/useContextTracking';
+import { Brain, Play, Plus, Trash2, RefreshCw, Zap, TrendingUp, Clock, Lightbulb } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,9 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export const AutonomousAIPanel = () => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [insights, setInsights] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [showNewTask, setShowNewTask] = useState(false);
   const { toast } = useToast();
+  const { trackInteraction, getRecommendations, triggerContextLearning } = useContextTracking();
 
   const [newTask, setNewTask] = useState({
     title: '',
@@ -28,7 +31,13 @@ export const AutonomousAIPanel = () => {
   useEffect(() => {
     loadTasks();
     loadInsights();
+    loadRecommendations();
   }, []);
+
+  const loadRecommendations = async () => {
+    const recs = await getRecommendations();
+    setRecommendations(recs);
+  };
 
   const loadTasks = async () => {
     const { data } = await supabase
@@ -188,12 +197,33 @@ export const AutonomousAIPanel = () => {
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Alle ausführen
           </Button>
+          <Button onClick={triggerContextLearning} disabled={loading} variant="outline">
+            <Lightbulb className="h-4 w-4 mr-2" />
+            Context Learning
+          </Button>
           <Button onClick={() => setShowNewTask(!showNewTask)} disabled={loading}>
             <Plus className="h-4 w-4 mr-2" />
             Neuer Task
           </Button>
         </div>
       </div>
+
+      {/* Context Recommendations */}
+      {recommendations.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Lightbulb className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Proaktive Empfehlungen</h3>
+          </div>
+          <div className="grid gap-2">
+            {recommendations.map((rec, index) => (
+              <div key={index} className="p-3 border rounded-lg bg-primary/5">
+                <p className="text-sm font-medium text-primary">{rec}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* AI Insights */}
       <div className="space-y-3">
@@ -253,6 +283,7 @@ export const AutonomousAIPanel = () => {
                 <SelectItem value="data_analysis">Daten-Analyse</SelectItem>
                 <SelectItem value="scheduled_action">Geplante Aktion</SelectItem>
                 <SelectItem value="condition_trigger">Bedingung-Trigger</SelectItem>
+                <SelectItem value="context_learning">Context Learning</SelectItem>
               </SelectContent>
             </Select>
 
