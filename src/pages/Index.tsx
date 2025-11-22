@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Activity, Database } from "lucide-react";
+import { BrainAssistant } from "@/components/BrainAssistant";
 
 interface Layer {
   id: string;
@@ -230,6 +231,11 @@ export default function Index() {
             </Button>
           </div>
         </div>
+      </section>
+
+      {/* Brain Assistant */}
+      <section className="container mx-auto px-6 py-20">
+        <BrainAssistant />
       </section>
 
       {/* Footer */}

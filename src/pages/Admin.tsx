@@ -17,6 +17,7 @@ import SystemManagementPanel from "@/components/admin/SystemManagementPanel";
 import { WebAutomationPanel } from "@/components/admin/WebAutomationPanel";
 import { MobileConnectionPanel } from "@/components/admin/MobileConnectionPanel";
 import { AutonomousAIPanel } from "@/components/admin/AutonomousAIPanel";
+import { BrainManagementPanel } from "@/components/admin/BrainManagementPanel";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -117,8 +118,9 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="autonomous" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-11">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-12">
             <TabsTrigger value="autonomous">🤖 Autonom</TabsTrigger>
+            <TabsTrigger value="brain">🧠 Brain</TabsTrigger>
             <TabsTrigger value="web-automation">🌐 Web</TabsTrigger>
             <TabsTrigger value="mobile">📱 Mobile</TabsTrigger>
             <TabsTrigger value="quantum">⚛️ Quanten</TabsTrigger>
@@ -133,6 +135,10 @@ export default function Admin() {
 
           <TabsContent value="autonomous">
             <AutonomousAIPanel />
+          </TabsContent>
+
+          <TabsContent value="brain">
+            <BrainManagementPanel />
           </TabsContent>
 
           <TabsContent value="web-automation">

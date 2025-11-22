@@ -160,6 +160,8 @@ async function executeTask(task: any, supabase: any) {
     
     case 'context_learning':
       return await executeContextLearning(task, supabase);
+    case 'brain_optimization':
+      return await executeBrainOptimization(task, supabase);
     
     default:
       throw new Error(`Unbekannter Task-Typ: ${task.task_type}`);
@@ -471,4 +473,59 @@ function generateProactiveSuggestions(patterns: any): string[] {
   suggestions.push(`Interaktionsstil: ${patterns.interactionStyle || 'analysiert'}`);
   
   return suggestions;
+}
+
+async function executeBrainOptimization(task: any, supabase: any) {
+  console.log('Executing Brain Optimization task');
+  
+  const config = task.config || {};
+  const actions = [];
+  
+  try {
+    // Analyze and optimize
+    if (config.analyze) {
+      const { data: analyzeResult } = await supabase.functions.invoke('brain-manager', {
+        body: { action: 'analyze_and_optimize' }
+      });
+      actions.push({ action: 'analyze', result: analyzeResult });
+    }
+    
+    // Build knowledge graph
+    if (config.build_graph) {
+      const { data: graphResult } = await supabase.functions.invoke('brain-manager', {
+        body: { action: 'build_knowledge_graph' }
+      });
+      actions.push({ action: 'build_graph', result: graphResult });
+    }
+    
+    // Generate content
+    if (config.generate_content) {
+      const { data: contentResult } = await supabase.functions.invoke('brain-manager', {
+        body: { action: 'generate_content' }
+      });
+      actions.push({ action: 'generate_content', result: contentResult });
+    }
+    
+    // Generate insights
+    if (config.generate_insights) {
+      const { data: insightsResult } = await supabase.functions.invoke('brain-manager', {
+        body: { action: 'generate_insights' }
+      });
+      actions.push({ action: 'generate_insights', result: insightsResult });
+    }
+    
+    return {
+      success: true,
+      actions_completed: actions.length,
+      actions,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('Brain optimization error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      actions_attempted: actions.length
+    };
+  }
 }
