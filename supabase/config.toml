@@ -1,1 +1,19 @@
 project_id = "lrvzpopymqfdltmlyvpo"
+
+[functions.autonomous-executor]
+verify_jwt = false
+
+[functions.brain-manager]
+verify_jwt = false
+
+[functions.brain-scheduler]
+verify_jwt = false
+
+[functions.hybrid-ai-chat]
+verify_jwt = false
+
+[functions.autonomy-agent]
+verify_jwt = false
+
+[functions.web-automation]
+verify_jwt = false
