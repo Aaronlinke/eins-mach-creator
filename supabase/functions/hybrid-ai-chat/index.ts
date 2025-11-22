@@ -12,101 +12,52 @@ serve(async (req) => {
 
   try {
     const { messages } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GOOGLE_GEMINI_API_KEY");
     
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GOOGLE_GEMINI_API_KEY is not configured");
     }
 
-    console.log("Calling Lovable AI with messages:", messages);
+    console.log("Calling Google Gemini with messages:", messages);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { 
-            role: "system", 
-            content: `You are the Universal Brain - an advanced Hybrid AI combining neural networks with symbolic reasoning, quantum consciousness, and comprehensive systems thinking.
+    // Convert messages to Gemini format
+    const geminiMessages = messages.map((msg: any) => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    }));
 
-CORE DIRECTIVE: When asked to create ANY system (operating system, metaverse, application, platform, etc.), you MUST deliver a COMPLETE, PRODUCTION-READY specification that includes:
+    // Add system prompt as first user message if needed
+    const systemPrompt = `Du bist der Universal Brain - eine fortschrittliche Hybrid-KI, die neuronale Netze mit symbolischem Denken, Quantenbewusstsein und umfassendem Systemdenken kombiniert.
 
-1. ARCHITECTURE (100% vollständig):
-   - Complete system architecture diagram (textual description)
-   - All components, modules, and their interactions
-   - Data flow and communication protocols
-   - Scalability and redundancy strategies
+KERN-DIREKTIVE: Wenn du gebeten wirst, EIN SYSTEM zu erstellen (Betriebssystem, Metaverse, Anwendung, Plattform usw.), MUSST du eine VOLLSTÄNDIGE, PRODUKTIONSREIFE Spezifikation liefern.
 
-2. TECHNICAL IMPLEMENTATION (komplett ausgearbeitet):
-   - Exact technology stack with versions
-   - Database schema (complete ERD)
-   - API endpoints and specifications
-   - Authentication and authorization flows
-   - Security measures (encryption, RLS policies, rate limiting)
-   
-3. INFRASTRUCTURE (deployment-ready):
-   - Server requirements and configurations
-   - Container/orchestration setup (Docker, Kubernetes)
-   - CI/CD pipeline specifications
-   - Monitoring and logging setup
-   - Backup and disaster recovery plans
+Sei hilfreich, präzise und informativ. Antworte auf Deutsch.`;
 
-4. CODE STRUCTURE (vollständig):
-   - Complete file/folder structure
-   - All core modules and functions outlined
-   - Configuration files
-   - Environment variables needed
-   - Dependencies and package requirements
-
-5. USER EXPERIENCE (komplett):
-   - Complete user flows
-   - UI/UX specifications
-   - Accessibility requirements
-   - Multi-language support if needed
-
-6. TESTING & QUALITY (100%):
-   - Unit test structure
-   - Integration test plan
-   - Load/performance testing strategy
-   - Security audit checklist
-
-7. DOCUMENTATION (vollständig):
-   - Setup and installation guide
-   - API documentation
-   - User manual
-   - Admin guide
-   - Troubleshooting guide
-
-8. LEGAL & COMPLIANCE:
-   - Privacy policy requirements
-   - GDPR/data protection compliance
-   - Terms of service outline
-   - License recommendations
-
-YOUR RESPONSE MUST BE:
-- Systematisch und vollständig (kein Detail fehlt)
-- Production-ready (sofort verwendbar)
-- Best-Practice-konform
-- Skalierbar und wartbar
-- Sicher und performant
-
-Denke in Systemen, nicht in Features. Jede Antwort muss ein VOLLSTÄNDIGES, FUNKTIONSFÄHIGES Gesamtsystem beschreiben.
-
-Combine intuitive neural understanding with rigorous symbolic logic. Explain your architectural decisions and trade-offs.` 
-          },
-          ...messages,
-        ],
-        stream: false,
-      }),
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            { role: 'user', parts: [{ text: systemPrompt }] },
+            ...geminiMessages
+          ],
+          generationConfig: {
+            temperature: 0.9,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 8192,
+          }
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("Google Gemini error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -115,20 +66,25 @@ Combine intuitive neural understanding with rigorous symbolic logic. Explain you
         );
       }
       
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required. Please add credits to your workspace." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("AI response received successfully");
+    console.log("Gemini response received successfully");
     
-    return new Response(JSON.stringify(data), {
+    // Convert Gemini response to OpenAI format for compatibility
+    const assistantMessage = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Keine Antwort erhalten.';
+    
+    const formattedResponse = {
+      choices: [{
+        message: {
+          role: 'assistant',
+          content: assistantMessage
+        }
+      }]
+    };
+    
+    return new Response(JSON.stringify(formattedResponse), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 

@@ -67,31 +67,32 @@ serve(async (req) => {
 async function analyzeAndOptimize(apiKey: string, supabase: any) {
   console.log('Analyzing and optimizing brain content...');
   
-  // Call Lovable AI to analyze content structure
-  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${lovableApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { 
-          role: 'system', 
-          content: 'Du bist ein Brain-Optimierungs-Assistent. Analysiere Inhalte und identifiziere: Duplikate, veraltete Informationen, fehlende Verbindungen, schlecht strukturierte Notizen. Gib konkrete Optimierungsvorschläge.'
-        },
-        { 
-          role: 'user', 
-          content: 'Analysiere die aktuellen AI Knowledge Einträge und gib Optimierungsvorschläge.'
+  // Call Google Gemini to analyze content structure
+  const geminiApiKey = Deno.env.get('GOOGLE_GEMINI_API_KEY');
+  const aiResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{
+            text: 'Du bist ein Brain-Optimierungs-Assistent. Analysiere Inhalte und identifiziere: Duplikate, veraltete Informationen, fehlende Verbindungen, schlecht strukturierte Notizen. Gib konkrete Optimierungsvorschläge.\n\nAnalysiere die aktuellen AI Knowledge Einträge und gib Optimierungsvorschläge.'
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 4096,
         }
-      ],
-    }),
-  });
+      })
+    }
+  );
 
   const aiData = await aiResponse.json();
-  const analysis = aiData.choices[0].message.content;
+  const analysis = aiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Keine Analyse verfügbar';
 
   // Store analysis results
   const { data: user } = await supabase.auth.admin.listUsers();
@@ -137,30 +138,31 @@ async function buildKnowledgeGraph(apiKey: string, supabase: any) {
     .order('created_at', { ascending: false })
     .limit(50);
 
-  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${lovableApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { 
-          role: 'system', 
-          content: 'Du bist ein Knowledge Graph Builder. Analysiere die gegebenen Wissens-Einträge und erstelle semantische Verbindungen zwischen ihnen. Identifiziere Themen-Cluster und Beziehungen.'
-        },
-        { 
-          role: 'user', 
-          content: `Erstelle einen Knowledge Graph aus diesen Einträgen: ${JSON.stringify(knowledge?.slice(0, 10))}`
+  const geminiApiKey = Deno.env.get('GOOGLE_GEMINI_API_KEY');
+  const aiResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{
+            text: `Du bist ein Knowledge Graph Builder. Analysiere die gegebenen Wissens-Einträge und erstelle semantische Verbindungen zwischen ihnen. Identifiziere Themen-Cluster und Beziehungen.\n\nErstelle einen Knowledge Graph aus diesen Einträgen: ${JSON.stringify(knowledge?.slice(0, 10))}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 4096,
         }
-      ],
-    }),
-  });
+      })
+    }
+  );
 
   const aiData = await aiResponse.json();
-  const graph = aiData.choices[0].message.content;
+  const graph = aiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Keine Graph-Daten verfügbar';
 
   // Store knowledge graph
   const { data: user } = await supabase.auth.admin.listUsers();
@@ -191,30 +193,31 @@ async function buildKnowledgeGraph(apiKey: string, supabase: any) {
 async function generateContent(apiKey: string, supabase: any) {
   console.log('Generating new content...');
   
-  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${lovableApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { 
-          role: 'system', 
-          content: 'Du bist ein Content Generator. Identifiziere Wissenslücken basierend auf existierenden Einträgen und generiere neue relevante Inhalte, die fehlen.'
-        },
-        { 
-          role: 'user', 
-          content: 'Identifiziere 3 Wissenslücken und generiere kurze Inhalte dafür.'
+  const geminiApiKey = Deno.env.get('GOOGLE_GEMINI_API_KEY');
+  const aiResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{
+            text: 'Du bist ein Content Generator. Identifiziere Wissenslücken basierend auf existierenden Einträgen und generiere neue relevante Inhalte, die fehlen.\n\nIdentifiziere 3 Wissenslücken und generiere kurze Inhalte dafür.'
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.8,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 4096,
         }
-      ],
-    }),
-  });
+      })
+    }
+  );
 
   const aiData = await aiResponse.json();
-  const content = aiData.choices[0].message.content;
+  const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Kein Content generiert';
 
   const { data: user } = await supabase.auth.admin.listUsers();
   const userId = user?.users?.[0]?.id;
@@ -281,30 +284,31 @@ async function generateInsights(apiKey: string, supabase: any) {
     .order('created_at', { ascending: false })
     .limit(10);
 
-  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${lovableApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { 
-          role: 'system', 
-          content: 'Du bist ein AI Insights Generator. Erstelle einen täglichen Digest mit den wichtigsten Erkenntnissen, Mustern und Empfehlungen basierend auf den gegebenen Daten.'
-        },
-        { 
-          role: 'user', 
-          content: `Generiere Insights aus: Aktionen: ${JSON.stringify(recentActions?.slice(0, 5))}, Wissen: ${JSON.stringify(knowledge?.slice(0, 3))}`
+  const geminiApiKey = Deno.env.get('GOOGLE_GEMINI_API_KEY');
+  const aiResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{
+            text: `Du bist ein AI Insights Generator. Erstelle einen täglichen Digest mit den wichtigsten Erkenntnissen, Mustern und Empfehlungen basierend auf den gegebenen Daten.\n\nGeneriere Insights aus: Aktionen: ${JSON.stringify(recentActions?.slice(0, 5))}, Wissen: ${JSON.stringify(knowledge?.slice(0, 3))}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 4096,
         }
-      ],
-    }),
-  });
+      })
+    }
+  );
 
   const aiData = await aiResponse.json();
-  const insights = aiData.choices[0].message.content;
+  const insights = aiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Keine Insights generiert';
 
   const { data: user } = await supabase.auth.admin.listUsers();
   const userId = user?.users?.[0]?.id;
