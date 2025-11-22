@@ -45,14 +45,21 @@ export const BrainAssistant = () => {
 
     } catch (error: any) {
       console.error('Error:', error);
+      
+      let errorMessage = 'Nachricht konnte nicht gesendet werden';
+      
+      if (error.message?.includes('Rate limit') || error.message?.includes('429')) {
+        errorMessage = 'Zu viele Anfragen. Bitte warte kurz (ca. 1 Minute) und versuche es erneut.';
+      }
+      
       toast({
         title: 'Fehler',
-        description: error.message || 'Nachricht konnte nicht gesendet werden',
+        description: errorMessage,
         variant: 'destructive',
       });
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Entschuldigung, es gab einen Fehler. Bitte versuche es erneut.' 
+        content: `Entschuldigung, es gab einen Fehler: ${errorMessage}` 
       }]);
     } finally {
       setLoading(false);
