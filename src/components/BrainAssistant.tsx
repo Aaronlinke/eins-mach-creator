@@ -34,15 +34,13 @@ export const BrainAssistant = () => {
     try {
       const { data, error } = await supabase.functions.invoke('hybrid-ai-chat', {
         body: { 
-          message: userMessage,
-          conversationId: 'brain-assistant-public',
-          systemPrompt: 'Du bist ein hilfsbereiter Brain Assistant. Du hast Zugriff auf ein Wissenssystem und kannst Nutzern bei ihren Fragen helfen. Sei freundlich, präzise und informativ.'
+          messages: messages.concat([{ role: 'user', content: userMessage }])
         }
       });
 
       if (error) throw error;
 
-      const assistantMessage = data?.response || 'Entschuldigung, ich konnte keine Antwort generieren.';
+      const assistantMessage = data?.choices?.[0]?.message?.content || 'Entschuldigung, ich konnte keine Antwort generieren.';
       setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
 
     } catch (error: any) {
