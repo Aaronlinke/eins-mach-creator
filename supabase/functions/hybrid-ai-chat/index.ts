@@ -5,6 +5,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple in-memory rate limiter
+const rateLimiter = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const limit = rateLimiter.get(userId);
+  
+  if (!limit || now > limit.resetAt) {
+    // Reset or create new limit (10 requests per minute)
+    rateLimiter.set(userId, { count: 1, resetAt: now + 60000 });
+    return true;
+  }
+  
+  if (limit.count >= 10) {
+    return false;
+  }
+  
+  limit.count++;
+  return true;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -16,6 +37,23 @@ serve(async (req) => {
     
     if (!GEMINI_API_KEY) {
       throw new Error("GOOGLE_GEMINI_API_KEY is not configured");
+    }
+
+    // Get user ID from auth header for rate limiting
+    const authHeader = req.headers.get('authorization');
+    const userId = authHeader?.split('.')?.[1] || 'anonymous';
+    
+    // Check rate limit
+    if (!checkRateLimit(userId)) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Zu viele Anfragen. Bitte warte eine Minute und versuche es erneut." 
+        }),
+        { 
+          status: 429, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
     console.log("Calling Google Gemini with messages:", messages);
@@ -61,12 +99,23 @@ Sei hilfreich, präzise und informativ. Antworte auf Deutsch.`;
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+          JSON.stringify({ 
+            error: "Google Gemini Rate Limit erreicht. Der kostenlose API-Key hat ein Limit von 15 Anfragen pro Minute. Bitte warte kurz und versuche es erneut." 
+          }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
-      throw new Error(`Gemini API error: ${response.status}`);
+      if (response.status === 403) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Google Gemini API-Key ungültig oder abgelaufen. Bitte prüfe deinen API-Key." 
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
