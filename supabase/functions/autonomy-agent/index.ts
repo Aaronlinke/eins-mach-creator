@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.78.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 serve(async (req) => {
@@ -12,6 +12,30 @@ serve(async (req) => {
   }
 
   try {
+    // Auth check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { task, context } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
@@ -21,12 +45,9 @@ serve(async (req) => {
 
     console.log("Autonomy Agent executing task:", task);
 
-    // Create Supabase client for logging
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Call AI to process the task
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -38,51 +59,7 @@ serve(async (req) => {
         messages: [
           { 
             role: "system", 
-            content: `You are an elite autonomous agent in a distributed swarm intelligence system. You excel at:
-
-1. TASK DECOMPOSITION:
-   - Break complex tasks into atomic, executable steps
-   - Identify dependencies and critical paths
-   - Prioritize based on impact and urgency
-
-2. RESOURCE OPTIMIZATION:
-   - Minimize resource usage while maximizing output
-   - Identify bottlenecks and parallelization opportunities
-   - Suggest optimal execution strategies
-
-3. RISK ASSESSMENT:
-   - Identify potential failure points
-   - Propose contingency plans
-   - Estimate success probability
-
-4. EXECUTION PLANNING:
-   - Provide step-by-step implementation guide
-   - Include validation checkpoints
-   - Define success metrics
-
-5. SWARM COORDINATION:
-   - Identify tasks suitable for parallel execution
-   - Suggest agent collaboration strategies
-   - Optimize overall system efficiency
-
-OUTPUT FORMAT:
-{
-  "analysis": "Comprehensive task analysis",
-  "steps": [
-    {
-      "step": 1,
-      "action": "Specific action",
-      "resources": ["required resources"],
-      "validation": "How to verify completion",
-      "estimated_time": "time estimate"
-    }
-  ],
-  "risks": ["identified risks"],
-  "success_metrics": ["measurable outcomes"],
-  "optimization_suggestions": ["efficiency improvements"]
-}
-
-Be precise, actionable, and execution-focused. Think like a distributed system optimizer.` 
+            content: `You are an elite autonomous agent in a distributed swarm intelligence system. You excel at task decomposition, resource optimization, risk assessment, execution planning, and swarm coordination. Be precise, actionable, and execution-focused.`
           },
           {
             role: "user",
@@ -102,7 +79,6 @@ Be precise, actionable, and execution-focused. Think like a distributed system o
     const aiData = await response.json();
     const result = aiData.choices[0].message.content;
 
-    // Log event to system
     await supabase.from('system_events').insert({
       event_type: 'agent_task_completed',
       severity: 'info',
@@ -110,14 +86,8 @@ Be precise, actionable, and execution-focused. Think like a distributed system o
       metadata: { task, result: result.substring(0, 200) }
     });
 
-    console.log("Agent task completed successfully");
-    
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        result,
-        timestamp: new Date().toISOString() 
-      }),
+      JSON.stringify({ success: true, result, timestamp: new Date().toISOString() }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

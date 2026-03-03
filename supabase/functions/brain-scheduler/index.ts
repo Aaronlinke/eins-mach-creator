@@ -15,9 +15,38 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('🤖 Brain Scheduler: Checking for pending brain optimization tasks...');
+    console.log('🤖 Brain Scheduler: Starting cleanup and scheduling...');
 
-    // Check if there are any pending or running brain_optimization tasks
+    // Step 1: Clean up stale running tasks (>30 min)
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: staleRunning } = await supabase
+      .from('autonomous_tasks')
+      .update({ 
+        status: 'failed', 
+        error_log: 'Timeout - automatisch bereinigt nach 30 Minuten' 
+      })
+      .eq('status', 'running')
+      .lt('last_run_at', thirtyMinAgo)
+      .select('id');
+
+    if (staleRunning?.length) {
+      console.log(`🧹 Cleaned ${staleRunning.length} stale running task(s)`);
+    }
+
+    // Step 2: Clean up stale pending tasks (>1 hour)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: stalePending } = await supabase
+      .from('autonomous_tasks')
+      .delete()
+      .eq('status', 'pending')
+      .lt('created_at', oneHourAgo)
+      .select('id');
+
+    if (stalePending?.length) {
+      console.log(`🧹 Deleted ${stalePending.length} stale pending task(s)`);
+    }
+
+    // Step 3: Check for active brain_optimization tasks
     const { data: existingTasks, error: checkError } = await supabase
       .from('autonomous_tasks')
       .select('*')
@@ -29,20 +58,20 @@ Deno.serve(async (req) => {
       throw checkError;
     }
 
-    // If there's already a task running, skip
     if (existingTasks && existingTasks.length > 0) {
       console.log(`⏸️ Brain Scheduler: Skipping - ${existingTasks.length} task(s) already active`);
       return new Response(
         JSON.stringify({ 
           message: 'Task already running', 
-          activeTasksCount: existingTasks.length 
+          activeTasksCount: existingTasks.length,
+          cleanedRunning: staleRunning?.length || 0,
+          cleanedPending: stalePending?.length || 0
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get a random user_id from profiles (for system tasks)
-    // In production, you might want to use a specific system user
+    // Step 4: Get system user
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id')
@@ -57,13 +86,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const userId = profiles.id;
-
-    // Create a new full brain optimization task
+    // Step 5: Create and execute new task
     const { data: newTask, error: insertError } = await supabase
       .from('autonomous_tasks')
       .insert({
-        user_id: userId,
+        user_id: profiles.id,
         title: 'Automatische Brain-Optimierung',
         description: 'Regelmäßige KI-gesteuerte Optimierung des Wissenssystems',
         task_type: 'brain_optimization',
@@ -80,21 +107,16 @@ Deno.serve(async (req) => {
       .select()
       .single();
 
-    if (insertError) {
-      console.error('Error creating task:', insertError);
-      throw insertError;
-    }
+    if (insertError) throw insertError;
 
     console.log('✅ Brain Scheduler: Created new task:', newTask.id);
 
-    // Immediately execute the task
     const { error: executeError } = await supabase.functions.invoke('autonomous-executor', {
       body: { taskId: newTask.id }
     });
 
     if (executeError) {
       console.error('Error executing task:', executeError);
-      // Don't throw - task is created, it can be executed later
     } else {
       console.log('🚀 Brain Scheduler: Task execution started');
     }
@@ -102,7 +124,9 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         message: 'Brain optimization scheduled and started', 
-        taskId: newTask.id 
+        taskId: newTask.id,
+        cleanedRunning: staleRunning?.length || 0,
+        cleanedPending: stalePending?.length || 0
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

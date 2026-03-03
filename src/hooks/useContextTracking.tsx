@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export const useContextTracking = () => {
   const { toast } = useToast();
+  const location = useLocation();
 
   // Track page views and user interactions
   const trackInteraction = async (interactionType: string, metadata?: any) => {
@@ -30,10 +32,10 @@ export const useContextTracking = () => {
   // Track route changes
   useEffect(() => {
     trackInteraction('page_view', {
-      path: window.location.pathname,
+      path: location.pathname,
       referrer: document.referrer
     });
-  }, [window.location.pathname]);
+  }, [location.pathname]);
 
   // Get context-based recommendations
   const getRecommendations = async () => {
