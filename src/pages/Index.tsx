@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,7 @@ export default function Index() {
   const [activeLayer, setActiveLayer] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -65,7 +66,8 @@ export default function Index() {
           table: 'system_layers'
         },
         () => {
-          // Refetch on any changes
+          queryClient.invalidateQueries({ queryKey: ["system-layers"] });
+          queryClient.invalidateQueries({ queryKey: ["system-metrics"] });
         }
       )
       .subscribe();

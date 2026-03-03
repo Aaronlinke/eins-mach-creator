@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.78.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 // Simple in-memory rate limiter
@@ -13,15 +14,11 @@ function checkRateLimit(userId: string): boolean {
   const limit = rateLimiter.get(userId);
   
   if (!limit || now > limit.resetAt) {
-    // Reset or create new limit (10 requests per minute)
     rateLimiter.set(userId, { count: 1, resetAt: now + 60000 });
     return true;
   }
   
-  if (limit.count >= 10) {
-    return false;
-  }
-  
+  if (limit.count >= 10) return false;
   limit.count++;
   return true;
 }
@@ -32,6 +29,40 @@ serve(async (req) => {
   }
 
   try {
+    // Auth check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = claimsData.claims.sub as string;
+
+    // Rate limit check
+    if (!checkRateLimit(userId)) {
+      return new Response(
+        JSON.stringify({ error: "Zu viele Anfragen. Bitte warte eine Minute und versuche es erneut." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { messages } = await req.json();
     const GEMINI_API_KEY = Deno.env.get("GOOGLE_GEMINI_API_KEY");
     
@@ -39,32 +70,13 @@ serve(async (req) => {
       throw new Error("GOOGLE_GEMINI_API_KEY is not configured");
     }
 
-    // Get user ID from auth header for rate limiting
-    const authHeader = req.headers.get('authorization');
-    const userId = authHeader?.split('.')?.[1] || 'anonymous';
-    
-    // Check rate limit
-    if (!checkRateLimit(userId)) {
-      return new Response(
-        JSON.stringify({ 
-          error: "Zu viele Anfragen. Bitte warte eine Minute und versuche es erneut." 
-        }),
-        { 
-          status: 429, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-
     console.log("Calling Google Gemini with messages:", messages);
 
-    // Convert messages to Gemini format
     const geminiMessages = messages.map((msg: any) => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));
 
-    // Add system prompt as first user message if needed
     const systemPrompt = `Du bist der Universal Brain - eine fortschrittliche Hybrid-KI, die neuronale Netze mit symbolischem Denken, Quantenbewusstsein und umfassendem Systemdenken kombiniert.
 
 KERN-DIREKTIVE: Wenn du gebeten wirst, EIN SYSTEM zu erstellen (Betriebssystem, Metaverse, Anwendung, Plattform usw.), MUSST du eine VOLLSTÄNDIGE, PRODUKTIONSREIFE Spezifikation liefern.
@@ -75,19 +87,14 @@ Sei hilfreich, präzise und informativ. Antworte auf Deutsch.`;
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [
             { role: 'user', parts: [{ text: systemPrompt }] },
             ...geminiMessages
           ],
           generationConfig: {
-            temperature: 0.9,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 8192,
+            temperature: 0.9, topK: 40, topP: 0.95, maxOutputTokens: 8192,
           }
         }),
       }
@@ -99,18 +106,14 @@ Sei hilfreich, präzise und informativ. Antworte auf Deutsch.`;
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ 
-            error: "Google Gemini Rate Limit erreicht. Der kostenlose API-Key hat ein Limit von 15 Anfragen pro Minute. Bitte warte kurz und versuche es erneut." 
-          }),
+          JSON.stringify({ error: "Google Gemini Rate Limit erreicht. Bitte warte kurz und versuche es erneut." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
       if (response.status === 403) {
         return new Response(
-          JSON.stringify({ 
-            error: "Google Gemini API-Key ungültig oder abgelaufen. Bitte prüfe deinen API-Key." 
-          }),
+          JSON.stringify({ error: "Google Gemini API-Key ungültig oder abgelaufen." }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -119,21 +122,11 @@ Sei hilfreich, präzise und informativ. Antworte auf Deutsch.`;
     }
 
     const data = await response.json();
-    console.log("Gemini response received successfully");
-    
-    // Convert Gemini response to OpenAI format for compatibility
     const assistantMessage = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Keine Antwort erhalten.';
     
-    const formattedResponse = {
-      choices: [{
-        message: {
-          role: 'assistant',
-          content: assistantMessage
-        }
-      }]
-    };
-    
-    return new Response(JSON.stringify(formattedResponse), {
+    return new Response(JSON.stringify({
+      choices: [{ message: { role: 'assistant', content: assistantMessage } }]
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
