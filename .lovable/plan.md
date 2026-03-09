@@ -1,147 +1,90 @@
 
-# OMEGA System - Komplett-Analyse und Optimierungsplan
 
-## Status-Ubersicht: Was funktioniert, was nicht, was verbessert werden muss
+# Komplett-Reparatur und Optimierung aller Funktionen
 
----
+## Kritisches Problem gefunden
 
-## FUNKTIONIERT (OK)
+Die Edge Function Logs zeigen: **brain-scheduler bekommt 401 Unauthorized** beim Aufruf von autonomous-executor. Die bei der letzten Implementierung eingebauten Auth-Checks haben **zwei kritische Bugs**:
 
-1. **Frontend-Routing** - Alle 5 Routen funktionieren (/, /layer/:id, /overview, /auth, /admin)
-2. **Auth-System** - Login/Signup mit E-Mail funktioniert korrekt
-3. **Admin-Zugriffskontrolle** - Rollenbasiert uber `user_roles` Tabelle (korrekt implementiert)
-4. **Dashboard (Index)** - Zeigt System-Layer, Metriken und Brain Assistant
-5. **System-Ubersicht** - Live-Event-Stream mit Realtime-Updates
-6. **Layer-Detail-Seite** - Zeigt Layer-Details und Events
-7. **Brain Assistant (Chat)** - Kommuniziert mit Google Gemini uber `hybrid-ai-chat`
-8. **Hybrid AI Panel** - Chat mit Konversations-Speicherung in DB
-9. **Web Automation** - Scraping, Link-Extraktion und Monitoring funktionieren
-10. **Datenbank-Daten** - 11 System-Layers, 9 Metriken, 10 Events vorhanden
-11. **Design-System** - Light/Dark Mode mit OMEGA-Branding
+1. **`isInternalCall()` ist kaputt**: Prüft `authHeader?.includes('service_role')` - aber das JWT-Token enthält nicht den String "service_role". Der Service-Role-Key ist ein JWT mit dem Claim `role: "service_role"`, nicht ein Klartext-String.
+
+2. **`getClaims()` existiert nicht**: Alle Edge Functions nutzen `userSupabase.auth.getClaims(token)` - diese Methode gibt es in supabase-js v2 nicht. Die korrekte Methode ist `supabase.auth.getUser(token)`.
+
+**Ergebnis**: Alle 6 Edge Functions sind derzeit kaputt - weder interne noch externe Aufrufe funktionieren.
 
 ---
 
-## PROBLEME (Muss behoben werden)
+## Betroffene Functions und Fixes
 
-### 1. Stale "Running" Task blockiert Scheduler
-- 1 `brain_optimization` Task steckt im Status "running" fest (alter als 1 Stunde)
-- Der `brain-scheduler` uberspringt neue Tasks wenn pending/running Tasks existieren
-- **Losung:** Stale running Tasks auf "failed" setzen + Scheduler-Logik verbessern mit Timeout
+### 1. autonomous-executor (kritisch)
+- `isInternalCall`: Token gegen bekannten Service-Role-Key vergleichen
+- `getClaims` → `auth.getUser()` mit dem Bearer-Token
+- Neuer pending Task (62062d54) steckt fest weil Executor 401 zurückgibt
 
-### 2. Stale "Pending" Context Learning Task
-- 1 `context_learning` Task steckt auf "pending"
-- Wird nie automatisch ausgefuhrt
-- **Losung:** Bereinigen und Timeout-Logik im Scheduler einbauen
+### 2. brain-manager
+- Gleicher `isInternalCall`-Bug
+- Gleicher `getClaims`-Bug
 
-### 3. Edge Functions ohne Authentifizierung (Sicherheit)
-- Alle 6 Edge Functions haben `verify_jwt = false`
-- Jeder kann `autonomous-executor`, `brain-manager`, `web-automation` aufrufen
-- **Losung:** Auth-Checks in jede Function einbauen (getClaims fur user-facing, Secret-Token fur Scheduler)
+### 3. hybrid-ai-chat
+- `getClaims`-Bug → User-Auth komplett kaputt
+- Brain Assistant auf Index-Seite funktioniert nicht
 
-### 4. Web Automation SSRF-Schwachstelle
-- `web-automation` akzeptiert beliebige URLs ohne Validierung
-- Interne Dienste (localhost, 169.254.x.x) erreichbar
-- **Losung:** URL-Validierung mit Blockierung privater IP-Bereiche
+### 4. web-automation
+- `getClaims`-Bug → Auth kaputt
 
-### 5. System-Events offentlich lesbar
-- SELECT-Policy erlaubt jedem `true` - alle Events sichtbar
-- **Losung:** Nur Admin-Zugriff erlauben
+### 5. autonomy-agent
+- `getClaims`-Bug → Auth kaputt
 
-### 6. Profiles fehlende INSERT-Policy
-- Neue Benutzer konnen kein Profil erstellen (der `handle_new_user` Trigger nutzt SECURITY DEFINER, umgeht RLS - funktioniert, aber direkte Inserts schlagen fehl)
-
-### 7. SystemManagement Buttons ohne Funktion
-- "Auth-Einstellungen", "Sicherheitsrichtlinien", "Performance-Tuning", "Backup" Buttons tun nichts
-- "Metriken-Dashboard" zeigt nur Toast
-
-### 8. Realtime-Subscription auf Index-Seite macht nichts
-- Der Channel-Listener auf Zeile 67 hat einen leeren Callback `() => {}` - macht eigentlich kein Refetch
-
-### 9. Context Tracking useEffect-Dependency
-- `useContextTracking` hat `window.location.pathname` als useEffect-Dependency - das ist kein React-State und triggert nie Re-Renders
+### 6. brain-scheduler
+- Kein eigener Bug, aber Aufruf von autonomous-executor schlägt fehl
 
 ---
 
-## OPTIMIERUNGEN (Doppelte Leistung)
+## Implementierungsplan
 
-### 1. Scheduler mit automatischer Stale-Task-Bereinigung
-- Vor Task-Erstellung: Running Tasks alter als 30 Min auf "failed" setzen
-- Pending Tasks alter als 1 Stunde loschen
-- Verhindert permanentes Blockieren
+### Fix 1: Auth-Helper-Pattern für alle Functions
 
-### 2. Brain Optimization Performance verdoppeln
-- Parallele Ausfuhrung: `analyze`, `build_graph`, `generate_content`, `generate_insights` gleichzeitig statt nacheinander
-- Aktuell werden sie sequentiell uber `supabase.functions.invoke` aufgerufen
-
-### 3. Index-Seite Realtime tatsachlich nutzen
-- QueryClient invalidation im Realtime-Callback
-- System-Layer und Metriken automatisch aktualisieren
-
-### 4. Rate Limiting verbessern
-- Aktuell in-memory (wird bei Function-Neustart zuruck gesetzt)
-- Besser: DB-basiertes Rate Limiting oder mindestens konsistentere Fehlermeldungen
-
----
-
-## Implementierungsplan (Reihenfolge)
-
-### Schritt 1: Stale Tasks bereinigen und Scheduler hartten
-- SQL: Stale running Tasks auf "failed" setzen
-- `brain-scheduler` erweitern: Tasks alter als 30 Min automatisch bereinigen
-- Timeout-Logik direkt im Scheduler
-
-### Schritt 2: Edge Functions absichern
-- Auth-Checks in `autonomous-executor`, `brain-manager`, `web-automation`
-- Interner Scheduler-Aufruf uber Service-Key validieren
-- SSRF-Schutz in `web-automation`
-
-### Schritt 3: RLS-Policies korrigieren
-- `system_events` SELECT nur fur Admins
-- `profiles` INSERT-Policy hinzufugen
-- Weitere offentliche SELECT-Policies prufen
-
-### Schritt 4: Performance-Verdopplung
-- `autonomous-executor` `executeBrainOptimization`: Parallele Ausfuhrung mit `Promise.all`
-- Index-Seite: Realtime-Callback mit Query-Invalidierung
-- `useContextTracking`: Korrekte Dependency fur Route-Tracking
-
-### Schritt 5: Nicht-funktionale Buttons reparieren
-- SystemManagement Buttons mit echten Aktionen oder entfernen
-- Toast-only Buttons durch funktionale Dialoge ersetzen
-
-### Technische Details
-
-**Stale Task Bereinigung (SQL):**
+Korrekter interner Aufruf-Check:
 ```text
-UPDATE autonomous_tasks
-SET status = 'failed', error_log = 'Timeout - automatisch bereinigt'
-WHERE status = 'running'
-AND last_run_at < NOW() - INTERVAL '30 minutes';
-
-DELETE FROM autonomous_tasks
-WHERE status = 'pending'
-AND created_at < NOW() - INTERVAL '1 hour';
+function isInternalCall(req: Request): boolean {
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader) return false;
+  const token = authHeader.replace('Bearer ', '');
+  return token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+}
 ```
 
-**brain-scheduler Erweiterung:**
-- Vor der Prufung auf existierende Tasks: Stale Tasks bereinigen
-- Timeout-Logik: Running > 30min = failed, Pending > 1h = delete
-
-**Parallele Brain-Optimierung:**
+Korrekte User-Auth:
 ```text
-// Statt sequentiell:
-const results = await Promise.allSettled([
-  config.analyze ? supabase.functions.invoke('brain-manager', { body: { action: 'analyze_and_optimize' } }) : null,
-  config.build_graph ? supabase.functions.invoke('brain-manager', { body: { action: 'build_knowledge_graph' } }) : null,
-  config.generate_content ? supabase.functions.invoke('brain-manager', { body: { action: 'generate_content' } }) : null,
-  config.generate_insights ? supabase.functions.invoke('brain-manager', { body: { action: 'generate_insights' } }) : null,
-].filter(Boolean));
+const { data: { user }, error } = await supabase.auth.getUser(token);
+if (error || !user) return 401;
 ```
 
-**Realtime-Fix (Index.tsx):**
-```text
-// Im Callback:
-queryClient.invalidateQueries({ queryKey: ["system-layers"] });
-```
+### Fix 2: Alle 5 Functions aktualisieren
+- **autonomous-executor**: Fix `isInternalCall` + ersetze `getClaims` mit `getUser`
+- **brain-manager**: Fix `isInternalCall` + ersetze `getClaims` mit `getUser`
+- **hybrid-ai-chat**: Ersetze `getClaims` mit `getUser`
+- **web-automation**: Ersetze `getClaims` mit `getUser`
+- **autonomy-agent**: Ersetze `getClaims` mit `getUser`
 
-Dieser Plan behebt alle Blockaden, schliesst Sicherheitslucken und verdoppelt die Performance des autonomen Systems.
+### Fix 3: Stale pending Task bereinigen
+- Task 62062d54 auf "failed" setzen (da Executor kaputt war)
+
+### Fix 4: BrainAssistant braucht Auth-Check
+- Aktuell sendet der BrainAssistant auf der Index-Seite Nachrichten ohne eingeloggt zu sein
+- Prüfung einbauen: wenn nicht eingeloggt, Hinweis zeigen statt Fehler
+
+---
+
+## Zusammenfassung der Änderungen
+
+| Datei | Änderung |
+|-------|----------|
+| `supabase/functions/autonomous-executor/index.ts` | Fix isInternalCall + getClaims → getUser |
+| `supabase/functions/brain-manager/index.ts` | Fix isInternalCall + getClaims → getUser |
+| `supabase/functions/hybrid-ai-chat/index.ts` | getClaims → getUser |
+| `supabase/functions/web-automation/index.ts` | getClaims → getUser |
+| `supabase/functions/autonomy-agent/index.ts` | getClaims → getUser |
+| `src/components/BrainAssistant.tsx` | Auth-Check vor Senden |
+| DB: autonomous_tasks | Stale Task bereinigen |
+
