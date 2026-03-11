@@ -1,10 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.78.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+function isInternalCall(req: Request): boolean {
+  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+  if (!authHeader) return false;
+  const token = authHeader.replace('Bearer ', '');
+  return token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -12,26 +19,23 @@ serve(async (req) => {
   }
 
   try {
-    // Allow internal calls (from autonomous-executor via service role) and authenticated users
     const authHeader = req.headers.get('Authorization');
-    const isInternal = authHeader?.includes('service_role') || false;
 
-    if (!isInternal) {
+    if (!isInternalCall(req)) {
       if (!authHeader?.startsWith('Bearer ')) {
         return new Response(
           JSON.stringify({ error: 'Unauthorized' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
       const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } }
       });
       const token = authHeader.replace('Bearer ', '');
-      const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) {
+      const { data: { user }, error: userError } = await userSupabase.auth.getUser(token);
+      if (userError || !user) {
         return new Response(
           JSON.stringify({ error: 'Unauthorized' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

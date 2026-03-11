@@ -6,12 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Internal service token validation for scheduler calls
 function isInternalCall(req: Request): boolean {
-  // Calls from other edge functions (brain-scheduler) come via supabase.functions.invoke
-  // which uses the service role key internally
-  const authHeader = req.headers.get('authorization');
-  return authHeader?.includes('service_role') || false;
+  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+  if (!authHeader) return false;
+  const token = authHeader.replace('Bearer ', '');
+  return token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 }
 
 serve(async (req) => {
@@ -37,19 +36,15 @@ serve(async (req) => {
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-      const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
-      });
       const token = authHeader.replace('Bearer ', '');
-      const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) {
+      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+      if (userError || !user) {
         return new Response(
           JSON.stringify({ error: 'Unauthorized' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      callerUserId = claimsData.claims.sub as string;
+      callerUserId = user.id;
     }
 
     if (action === 'execute_pending') {
@@ -64,7 +59,6 @@ serve(async (req) => {
       const results = [];
 
       for (const task of tasks || []) {
-        // If user call, only execute own tasks
         if (callerUserId && task.user_id !== callerUserId) continue;
 
         await supabase
@@ -115,7 +109,6 @@ serve(async (req) => {
 
     if (!task) throw new Error('Task nicht gefunden');
 
-    // If user call, verify ownership
     if (callerUserId && task.user_id !== callerUserId) {
       return new Response(
         JSON.stringify({ error: 'Forbidden: Not your task' }),
@@ -368,7 +361,6 @@ function generateProactiveSuggestions(patterns: any): string[] {
   return suggestions;
 }
 
-// Brain Optimization - PARALLEL execution for double performance
 async function executeBrainOptimization(task: any, supabase: any) {
   console.log('Executing Brain Optimization task (parallel mode)');
   
