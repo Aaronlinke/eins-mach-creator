@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Brain, Send, Loader2, Sparkles } from 'lucide-react';
+import { Brain, Send, Loader2, Sparkles, LogIn } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface Message {
@@ -22,9 +22,29 @@ export const BrainAssistant = () => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setIsAuthenticated(!!session);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
+
+    if (!isAuthenticated) {
+      toast({
+        title: 'Nicht eingeloggt',
+        description: 'Bitte logge dich ein, um den Brain Assistant zu nutzen.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const userMessage = input.trim();
     setInput('');
@@ -82,9 +102,16 @@ export const BrainAssistant = () => {
           </div>
           <Badge variant="outline" className="gap-1">
             <Sparkles className="h-3 w-3" />
-            Online
+            {isAuthenticated ? 'Online' : 'Offline'}
           </Badge>
         </div>
+
+        {!isAuthenticated && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted text-muted-foreground text-sm">
+            <LogIn className="h-4 w-4 shrink-0" />
+            <span>Bitte logge dich ein, um den Brain Assistant zu nutzen.</span>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="space-y-4 max-h-96 overflow-y-auto">
@@ -119,12 +146,12 @@ export const BrainAssistant = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder="Stelle eine Frage..."
-            disabled={loading}
+            placeholder={isAuthenticated ? "Stelle eine Frage..." : "Bitte erst einloggen..."}
+            disabled={loading || !isAuthenticated}
           />
           <Button
             onClick={sendMessage}
-            disabled={loading || !input.trim()}
+            disabled={loading || !input.trim() || !isAuthenticated}
             className="gap-2"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -137,7 +164,7 @@ export const BrainAssistant = () => {
             variant="outline"
             size="sm"
             onClick={() => setInput('Was kannst du für mich tun?')}
-            disabled={loading}
+            disabled={loading || !isAuthenticated}
           >
             Was kannst du?
           </Button>
@@ -145,7 +172,7 @@ export const BrainAssistant = () => {
             variant="outline"
             size="sm"
             onClick={() => setInput('Zeig mir die neuesten Insights')}
-            disabled={loading}
+            disabled={loading || !isAuthenticated}
           >
             Neueste Insights
           </Button>
@@ -153,7 +180,7 @@ export const BrainAssistant = () => {
             variant="outline"
             size="sm"
             onClick={() => setInput('Welche Features gibt es?')}
-            disabled={loading}
+            disabled={loading || !isAuthenticated}
           >
             Features
           </Button>

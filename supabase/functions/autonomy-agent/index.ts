@@ -12,7 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    // Auth check
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
@@ -28,8 +27,8 @@ serve(async (req) => {
     });
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await userSupabase.auth.getUser(token);
+    if (userError || !user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -57,14 +56,8 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { 
-            role: "system", 
-            content: `You are an elite autonomous agent in a distributed swarm intelligence system. You excel at task decomposition, resource optimization, risk assessment, execution planning, and swarm coordination. Be precise, actionable, and execution-focused.`
-          },
-          {
-            role: "user",
-            content: `Task: ${task}\nContext: ${JSON.stringify(context || {})}\n\nProvide a detailed analysis and execution plan.`
-          }
+          { role: "system", content: `You are an elite autonomous agent in a distributed swarm intelligence system. You excel at task decomposition, resource optimization, risk assessment, execution planning, and swarm coordination. Be precise, actionable, and execution-focused.` },
+          { role: "user", content: `Task: ${task}\nContext: ${JSON.stringify(context || {})}\n\nProvide a detailed analysis and execution plan.` }
         ],
         stream: false,
       }),
@@ -80,8 +73,7 @@ serve(async (req) => {
     const result = aiData.choices[0].message.content;
 
     await supabase.from('system_events').insert({
-      event_type: 'agent_task_completed',
-      severity: 'info',
+      event_type: 'agent_task_completed', severity: 'info',
       message: `Autonomy agent completed task: ${task.substring(0, 50)}...`,
       metadata: { task, result: result.substring(0, 200) }
     });
